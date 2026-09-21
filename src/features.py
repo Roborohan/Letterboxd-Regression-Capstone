@@ -102,6 +102,9 @@ def genre_history(frame, vocab):
         means.append(np.mean([totals[g] / counts[g] for g in seen]) if seen else np.nan)
         exposure.append(sum(counts[g] for g in gs))
 
+        if pd.isna(rating):               # unrated rows see the history but add nothing to it
+            continue
+
         for g in gs:                      # update AFTER recording, never before
             totals[g] += rating
             counts[g] += 1
