@@ -217,3 +217,30 @@ def fetch_all_details(tmdb_ids, *, headers, cache_path, delay=0.05):
     cache_path.write_text(json.dumps(cache))
     print(f"done — {new_calls} new API calls, {len(rows) - new_calls} from cache")
     return pd.DataFrame(rows)
+
+# ---------- Upcoming releases ----------
+
+def discover_upcoming(start, end, *, headers, pages=2, region=None):
+    """Films released between start and end, most popular first.
+
+    Without a region, filters on the primary (worldwide first) release date.
+    With a region, filters on that region's theatrical releases, limited or wide.
+    """
+    params = {"sort_by": "popularity.desc", "include_adult": False}
+    if region:
+        params.update({"region": region,
+                       "release_date.gte": start,
+                       "release_date.lte": end,
+                       "with_release_type": "2|3"})
+    else:
+        params.update({"primary_release_date.gte": start,
+                       "primary_release_date.lte": end})
+
+    results = []
+    for page in range(1, pages + 1):
+        r = requests.get("https://api.themoviedb.org/3/discover/movie",
+                         params={**params, "page": page},
+                         headers=headers, timeout=15)
+        r.raise_for_status()
+        results.extend(r.json()["results"])
+    return results
