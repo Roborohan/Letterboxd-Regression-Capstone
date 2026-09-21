@@ -188,6 +188,7 @@ def parse_details(d):
         "director":        first_with_job("Director"),
         "cinematographer": first_with_job("Director of Photography"),
         "cast_top5":       "|".join(c["name"] for c in cast[:5]),
+        "poster_path":     d.get("poster_path"),
     }
 
 
