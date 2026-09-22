@@ -6,11 +6,12 @@ data/*
 *.json
 !requirements.json
 
-# App inputs — the only data committed. data/processed/ holds the two prediction
-# tables the Streamlit app reads (watchlist titles and predicted ratings, no reviews),
-# so the app can run from the repo, e.g. on Streamlit Community Cloud.
+# App inputs — the only data committed. data/processed/<username>/ holds the tables the
+# Streamlit app reads for each Letterboxd export (titles, ratings, predictions, summary
+# figures and a display name — no review text), so the app can run from the repo,
+# e.g. on Streamlit Community Cloud. **/ covers every user's folder.
 !data/processed/
-!data/processed/*.csv
+!data/processed/**/*.csv
 
 # Raw exports, wherever they land
 letterboxd-*/

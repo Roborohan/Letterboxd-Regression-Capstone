@@ -1,17 +1,29 @@
 import streamlit as st
 
-from src.app_data import RUNGS, load_tables
+from src.app_data import RUNGS, current_tables, display_name, possessive
 from src.app_ui import crowd, poster_url, stars, stars_exact
 
 SHOWCASE_N = 12                   # rule fixed in advance: the most-voted test films, by vote_count alone
-
 SCALE_LO, SCALE_HI = 0.5, 5.0
 
-test = load_tables()["test"]
+tables   = current_tables()
+test     = tables["test"]
+summary  = tables["model_summary"]
+name     = display_name(st.session_state["user"])
+whose    = possessive(name)
+showcase = test.nlargest(SHOWCASE_N, "vote_count")
 
-mae_model = (test["pred_deploy"] - test["rating"]).abs().mean()
-mae_crowd = (test["pred_m1"] - test["rating"]).abs().mean()
-showcase  = test.nlargest(SHOWCASE_N, "vote_count")
+
+def ranking_phrase(s):
+    """How the model's ranking compares with the crowd's — rules fixed before any other user's data."""
+    if s["spearman_ci_lo"] <= 0:
+        return "about as well as the crowd score did"
+    ratio = s["spearman_model"] / s["spearman_crowd"] if s["spearman_crowd"] > 0 else float("inf")
+    if ratio >= 1.9:
+        return "about twice as well"
+    if ratio >= 1.6:
+        return "nearly twice as well"
+    return "better than the crowd score did"
 
 
 # ---------- Poster grid ----------
@@ -91,6 +103,14 @@ def ladder_html(film, step):
     return "".join(rows)
 
 
+def next_layer():
+    st.session_state.ladder_step += 1
+
+
+def restart_ladder():
+    st.session_state.ladder_step = 1
+
+
 def film_dialog(film):
     @st.dialog(film["film_title"], width="large")
     def show():
@@ -101,7 +121,7 @@ def film_dialog(film):
         html = (f"<div class='ladder-top'>{poster}<div class='ladder-head'>"
                 f"{film['film_year']}<br>"
                 f"Crowd score <b>{crowd(film['vote_average'])}</b> · "
-                f"My rating <b>{stars(film['rating'])}</b></div></div>")
+                f"{whose} rating <b>{stars(film['rating'])}</b></div></div>")
 
         html += ladder_html(film, step)
         if step == len(RUNGS):
@@ -110,11 +130,11 @@ def film_dialog(film):
             html += (f"<div class='ladder-summary'>Final prediction <b>{stars(film['pred_deploy'])}</b>, "
                      f"off by <b>{err_model:.2f}&nbsp;★</b> — the crowd score alone was off by "
                      f"<b>{err_crowd:.2f}&nbsp;★</b>.</div>")
-        html += ("<div class='ladder-note'><span style='color:var(--orange)'>●</span> prediction "
-                 "&nbsp; <span style='color:var(--muted)'>●</span> previous layer "
-                 "&nbsp; <span style='color:var(--green)'>┃</span> my rating &nbsp;·&nbsp; "
-                 "The film details and history layers are the models as tested, which also used review "
-                 "length; the final model doesn't, at no cost in accuracy.</div>")
+        html += (f"<div class='ladder-note'><span style='color:var(--orange)'>●</span> prediction "
+                 f"&nbsp; <span style='color:var(--muted)'>●</span> previous layer "
+                 f"&nbsp; <span style='color:var(--green)'>┃</span> {whose} rating &nbsp;·&nbsp; "
+                 f"The film details and history layers are the models as tested, which also used review "
+                 f"length; the final model doesn't, at no cost in accuracy.</div>")
         st.markdown(html, unsafe_allow_html=True)
 
         if step < len(RUNGS):
@@ -125,23 +145,15 @@ def film_dialog(film):
     show()
 
 
-def next_layer():
-    st.session_state.ladder_step += 1
-
-
-def restart_ladder():
-    st.session_state.ladder_step = 1
-
-
 # ---------- Page ----------
 
 st.header("Beyond the crowd", anchor=False)
 
-# "Nearly twice as well": Spearman 0.612 for the model against 0.340 for the crowd score (04 §15).
 st.markdown(
-    f"<p class='lead'>Tested on {len(test)} films it had never seen, the model's predictions were off by "
-    f"<b>{mae_model:.2f}&nbsp;★</b> on average, against <b>{mae_crowd:.2f}&nbsp;★</b> for the crowd score — "
-    f"and it ranked my films nearly twice as well.</p>"
+    f"<p class='lead'>Tested on {int(summary['n_test'])} films it had never seen, the model's predictions "
+    f"were off by <b>{summary['mae_deploy']:.2f}&nbsp;★</b> on average, against "
+    f"<b>{summary['mae_m1']:.2f}&nbsp;★</b> for the crowd score — and it ranked {whose} films "
+    f"{ranking_phrase(summary)}.</p>"
     f"<p class='card-meta'>The {SHOWCASE_N} best-known films in the test set, by number of TMDB votes. "
     f"Open one to see how its prediction was built.</p>",
     unsafe_allow_html=True,

@@ -1,6 +1,7 @@
-"""App data loading — moved from app.py.
+"""App data loading.
 
-Reads only data/processed/, the committed app tables.
+Each Letterboxd export gets its own folder, data/processed/<username>/, written by
+notebooks 01, 04 and 05. The app lists the folders that are complete and loads one.
 """
 
 from pathlib import Path
@@ -17,28 +18,58 @@ TABLES = {
     "coming":     "coming_soon.csv",
 }
 
-EXPECTED_ROWS = {"test": 239, "watchlist": 3924, "neighbours": 19620, "coming": 29}
+SUMMARIES = {                     # one-row files, loaded as dictionaries
+    "profile":           "profile.csv",
+    "model_summary":     "model_summary.csv",
+    "watchlist_summary": "watchlist_summary.csv",
+}
 
 ID_COLS = ["tmdb_id", "film_year", "neighbour_tmdb_id", "neighbour_year"]
-
-
-@st.cache_data
-def load_tables():
-    tables = {}
-    for name, filename in TABLES.items():
-        df = pd.read_csv(DATA / filename)
-        for col in ID_COLS:
-            if col in df.columns:
-                df[col] = df[col].astype("Int64")
-        tables[name] = df
-    return tables
 
 # The model ladder: (prediction column, label, what the model knows, button text to add this layer).
 # Shared by the intro page and the Beyond the crowd modal so the labels can't drift apart.
 RUNGS = [
-    ("pred_m0",     "Knows nothing",  "My typical rating, same for every film",        None),
-    ("pred_m1",     "+ Crowd score",  "TMDB's average rating",                         "Add the crowd score"),
-    ("pred_m2",     "+ Film details", "Genre, runtime, era, language",                 "Add film details"),
-    ("pred_m3",     "+ My history",   "My past ratings of its director, genres, era",  "Add my history"),
-    ("pred_deploy", "+ Keywords",     "TMDB plot keywords — the final model",          "Add keywords"),
+    ("pred_m0",     "Knows nothing",      "Typical rating, same for every film",        None),
+    ("pred_m1",     "+ Crowd score",      "TMDB's average rating",                      "Add the crowd score"),
+    ("pred_m2",     "+ Film details",     "Genre, runtime, era, language",              "Add film details"),
+    ("pred_m3",     "+ Viewing history",  "Past ratings of its director, genres, era",  "Add viewing history"),
+    ("pred_deploy", "+ Keywords",         "TMDB plot keywords — the final model",       "Add keywords"),
 ]
+
+def list_users():
+    """Usernames whose folder holds every file the app needs, sorted."""
+    needed = list(TABLES.values()) + list(SUMMARIES.values())
+    if not DATA.is_dir():
+        return []
+    return sorted(p.name for p in DATA.iterdir()
+                  if p.is_dir() and all((p / f).exists() for f in needed))
+
+
+@st.cache_data
+def load_tables(user):
+    folder = DATA / user
+    tables = {}
+    for name, filename in TABLES.items():
+        df = pd.read_csv(folder / filename)
+        for col in ID_COLS:
+            if col in df.columns:
+                df[col] = df[col].astype("Int64")
+        tables[name] = df
+    for name, filename in SUMMARIES.items():
+        tables[name] = pd.read_csv(folder / filename).iloc[0].to_dict()
+    return tables
+
+
+def display_name(user):
+    """The profile's display name, falling back to the username."""
+    name = load_tables(user)["profile"].get("display_name")
+    return name.strip() if isinstance(name, str) and name.strip() else user
+
+def possessive(name):
+    """'Rohan' -> "Rohan's", 'James' -> "James'"."""
+    return f"{name}'" if name.endswith("s") else f"{name}'s"
+
+
+def current_tables():
+    """Tables for whichever user is selected (set in app.py)."""
+    return load_tables(st.session_state["user"])
