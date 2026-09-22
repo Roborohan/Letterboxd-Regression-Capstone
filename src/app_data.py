@@ -65,6 +65,7 @@ def display_name(user):
     name = load_tables(user)["profile"].get("display_name")
     return name.strip() if isinstance(name, str) and name.strip() else user
 
+
 def possessive(name):
     """'Rohan' -> "Rohan's", 'James' -> "James'"."""
     return f"{name}'" if name.endswith("s") else f"{name}'s"
@@ -73,6 +74,7 @@ def possessive(name):
 def current_tables():
     """Tables for whichever user is selected (set in app.py)."""
     return load_tables(st.session_state["user"])
+
 
 INTERIM = DATA.parent / "interim"
 

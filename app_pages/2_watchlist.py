@@ -6,21 +6,14 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from src.app_data import current_tables, display_name, load_reviews, possessive
-from src.app_ui import card_stats, crowd, excerpt, gap, poster_grid, poster_url, stars, stars_exact
+from src.app_ui import (card_stats, crowd, excerpt, flag_html, gap, poster_grid, poster_url,
+                        runtime_text, stars, stars_exact)
 
 PAGE_SIZE = 18
 MIN_GAP   = 0.25        # a quarter-star: half the half-star step predictions are displayed in
 FAVOURITES, MISSES = "Likely favourites", "Likely misses"
 ABOVE, BELOW       = "Above the crowd", "Below the crowd"
 MODES              = [FAVOURITES, MISSES, ABOVE, BELOW]
-
-FLAG_TEXT = {           # 05's out_of_range column names -> what the card says
-    "genre":        "unfamiliar genre",
-    "runtime":      "unusual runtime",
-    "vote_average": "unusual crowd score",
-    "film_year":    "unusual release year",
-    "popularity":   "unusual popularity",
-}
 
 SCROLL_TOP_JS = """
 <script>
@@ -59,14 +52,6 @@ def page_typed():
 
 def open_watchlist_film(uri):
     st.session_state.wl_open = uri
-    st.session_state.dialog_n = st.session_state.get("dialog_n", 0) + 1
-
-
-def runtime_text(minutes):
-    if pd.isna(minutes) or minutes <= 0:
-        return None
-    h, m = divmod(int(minutes), 60)
-    return f"{h}h {m}m" if h else f"{m}m"
 
 
 # ---------- Header and controls ----------
@@ -189,8 +174,7 @@ def neighbour_card(n):
 
 
 def why_dialog(film):
-    @st.dialog(film["film_title"] + "\u200b" * (st.session_state.get("dialog_n", 0) % 2),
-        width="large", on_dismiss="rerun")
+    @st.dialog(film["film_title"], width="large", on_dismiss="rerun")
     def show():
         url = poster_url(film["poster_path"])
         if url and not film["sensitive_poster"]:
@@ -263,12 +247,9 @@ def watchlist_caption(film):
         second = ("Vs crowd est.", gap(film.gap))
     else:
         second = ("Crowd", crowd(film.vote_average))
-    flags = film.out_of_range.split("|") if isinstance(film.out_of_range, str) and film.out_of_range else []
-    flag = (f"<div style='color:var(--orange); font-size:0.8rem; margin-top:0.2rem'>⚑ "
-            f"{' · '.join(FLAG_TEXT.get(f, f) for f in flags)}</div>" if flags else "")
     return (f"<div class='card-meta'>{meta}</div>"
             + card_stats([("Predicted", stars(film.pred)), second])
-            + flag)
+            + flag_html(film.out_of_range))
 
 
 def pager(where):

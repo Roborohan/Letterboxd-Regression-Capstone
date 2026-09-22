@@ -525,8 +525,37 @@ def poster_grid(films, key_prefix, caption, on_open, id_col="film_key", per_row=
             with col:
                 poster_card(film, f"card_{key_prefix}_{start + i}", caption(film), on_open, id_col)
 
+
 def excerpt(text, limit=220):
     """The start of a text, cut at a word boundary with an ellipsis if it runs past `limit` characters."""
     if len(text) <= limit:
         return text
     return text[:limit].rsplit(" ", 1)[0].rstrip(",;:-") + "…"
+
+
+# ---------- Shared card pieces ----------
+
+FLAG_TEXT = {           # 05's out_of_range column names -> what a card says
+    "genre":        "unfamiliar genre",
+    "runtime":      "unusual runtime",
+    "vote_average": "unusual crowd score",
+    "film_year":    "unusual release year",
+    "popularity":   "unusual popularity",
+}
+
+
+def runtime_text(minutes):
+    """'2h 14m', or None when TMDB has no runtime."""
+    if pd.isna(minutes) or minutes <= 0:
+        return None
+    h, m = divmod(int(minutes), 60)
+    return f"{h}h {m}m" if h else f"{m}m"
+
+
+def flag_html(out_of_range):
+    """The ⚑ line for a card, or '' when the film is not flagged."""
+    flags = out_of_range.split("|") if isinstance(out_of_range, str) and out_of_range else []
+    if not flags:
+        return ""
+    return (f"<div style='color:var(--orange); font-size:0.8rem; margin-top:0.2rem'>⚑ "
+            f"{' · '.join(FLAG_TEXT.get(f, f) for f in flags)}</div>")

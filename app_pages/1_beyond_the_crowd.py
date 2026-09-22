@@ -31,7 +31,6 @@ def ranking_phrase(s):
 def open_film(film_key):
     st.session_state.open_film = film_key
     st.session_state.ladder_step = 1          # every film starts from "knows nothing"
-    st.session_state.dialog_n = st.session_state.get("dialog_n", 0) + 1
 
 
 def showcase_caption(film):
@@ -89,31 +88,30 @@ def restart_ladder():
 
 
 def film_dialog(film):
-    @st.dialog(film["film_title"] + "\u200b" * (st.session_state.get("dialog_n", 0) % 2),
-        width="large", on_dismiss="rerun")
+    @st.dialog(film["film_title"], width="large", on_dismiss="rerun")
     def show():
         step = st.session_state.ladder_step
 
         url = poster_url(film["poster_path"])
         poster = f"<img class='ladder-poster' src='{url}'>" if url else ""
-        html = (f"<div class='ladder-top'>{poster}<div class='ladder-head'>"
+        body = (f"<div class='ladder-top'>{poster}<div class='ladder-head'>"
                 f"{film['film_year']}<br>"
                 f"Crowd score <b>{crowd(film['vote_average'])}</b> · "
                 f"{whose} rating <b>{stars(film['rating'])}</b></div></div>")
 
-        html += ladder_html(film, step)
+        body += ladder_html(film, step)
         if step == len(RUNGS):
             err_model = abs(film["pred_deploy"] - film["rating"])
             err_crowd = abs(film["pred_m1"] - film["rating"])
-            html += (f"<div class='ladder-summary'>Final prediction <b>{stars(film['pred_deploy'])}</b>, "
+            body += (f"<div class='ladder-summary'>Final prediction <b>{stars(film['pred_deploy'])}</b>, "
                      f"off by <b>{err_model:.2f}&nbsp;★</b> — the crowd score alone was off by "
                      f"<b>{err_crowd:.2f}&nbsp;★</b>.</div>")
-        html += (f"<div class='ladder-note'><span style='color:var(--orange)'>●</span> prediction "
+        body += (f"<div class='ladder-note'><span style='color:var(--orange)'>●</span> prediction "
                  f"&nbsp; <span style='color:var(--muted)'>●</span> previous layer "
                  f"&nbsp; <span style='color:var(--green)'>┃</span> {whose} rating &nbsp;·&nbsp; "
                  f"The film details and history layers are the models as tested, which also used review "
                  f"length; the final model doesn't, at no cost in accuracy.</div>")
-        st.markdown(html, unsafe_allow_html=True)
+        st.markdown(body, unsafe_allow_html=True)
 
         if step < len(RUNGS):
             st.button(f"{RUNGS[step][3]} →", type="primary", on_click=next_layer)
