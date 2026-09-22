@@ -2,12 +2,25 @@ import math
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from src.app_data import current_tables, display_name, possessive
 from src.app_ui import card_stats, crowd, gap, poster_grid, stars
 
 PAGE_SIZE = 18
+MIN_GAP   = 0.25        # a quarter-star: half the half-star step predictions are displayed in
 FAVOURITES, ABOVE = "Likely favourites", "Above the crowd"
+
+SCROLL_TOP_JS = """
+<script>
+const doc = window.parent.document;
+[doc.querySelector('[data-testid="stMain"]'),
+ doc.querySelector('[data-testid="stAppViewContainer"]'),
+ doc.querySelector('section.main'),
+ doc.scrollingElement].forEach(el => { if (el) el.scrollTo({top: 0, behavior: "smooth"}); });
+window.parent.scrollTo({top: 0, behavior: "smooth"});
+</script>
+"""
 
 tables  = current_tables()
 wl      = tables["watchlist"]
@@ -25,10 +38,12 @@ def reset_paging():
 
 def go_to(page):
     st.session_state.wl_page = page
+    st.session_state.wl_scroll_to_top = True
 
 
 def page_typed():
     st.session_state.wl_page = st.session_state.wl_page_input - 1
+    st.session_state.wl_scroll_to_top = True
 
 
 def open_watchlist_film(uri):
@@ -64,10 +79,11 @@ with right:
     )
 
 if mode == ABOVE:
-    explain = (f"Films the model expects {name} to like more than its crowd-based estimate. Shown only "
-               f"where the crowd score is between {summary['crowd_lo']:.1f} and {summary['crowd_hi']:.1f}/10, "
-               f"the range where the two can be fairly compared, and the prediction is at least "
-               f"{whose} average of {summary['rated_mean']:.2f}&nbsp;★.")
+    explain = (f"Films the model expects {name} to like at least a quarter-star more than its "
+               f"crowd-based estimate. Shown only where the crowd score is between "
+               f"{summary['crowd_lo']:.1f} and {summary['crowd_hi']:.1f}/10, the range where the two can "
+               f"be fairly compared, and the prediction is at least {whose} average of "
+               f"{summary['rated_mean']:.2f}&nbsp;★.")
 else:
     explain = f"Films the model expects {name} to rate highly."
 st.markdown(f"<p class='card-meta'>{explain}</p>", unsafe_allow_html=True)
@@ -80,7 +96,7 @@ if well_known:
     films = films[films["vote_count"] >= summary["rated_median_votes"]]
 
 if mode == ABOVE:
-    films = (films[films["gap"].notna() & (films["pred"] >= summary["rated_mean"])]
+    films = (films[(films["gap"] >= MIN_GAP) & (films["pred"] >= summary["rated_mean"])]
              .sort_values(["gap", "vote_count"], ascending=False))
 else:
     films = films.sort_values(["pred", "vote_count"], ascending=False)
@@ -142,6 +158,10 @@ else:
     poster_grid(page_films, "watchlist", watchlist_caption, open_watchlist_film, id_col="film_uri")
     pager("bottom")
 
+
+if st.session_state.pop("wl_scroll_to_top", False):
+    st.session_state.wl_scroll_n = st.session_state.get("wl_scroll_n", 0) + 1
+    components.html(SCROLL_TOP_JS + f"<!-- {st.session_state.wl_scroll_n} -->", height=0)
 
 # ---------- Why? (next piece) ----------
 

@@ -4,6 +4,8 @@ Every rating shown in the app goes through these helpers, so units are never dro
 predictions as half-stars (3.5 ★), crowd as 6.1 / 10, gaps as +0.8 ★.
 """
 
+import html
+
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -64,12 +66,24 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     margin-bottom: 1.75rem;
 }
 
-[class*="st-key-card_"] img {
+.poster-frame {
+    position: relative;
+    overflow: hidden;
     border-radius: 6px;
+    aspect-ratio: 2 / 3;
+    margin-bottom: 0.6rem;
+    background: var(--surface);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-[class*="st-key-card_"]:hover img {
+.poster-frame img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+[class*="st-key-card_"]:hover .poster-frame {
     transform: translateY(-4px);
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5), 0 0 0 2px var(--orange);
 }
@@ -260,6 +274,40 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     to   { opacity: 1; transform: none; }
 }
 
+/* Hidden or missing posters: the title on a blurred (or plain) frame */
+.poster-hidden img {
+    filter: blur(22px) brightness(0.55);
+    transform: scale(1.2);
+}
+
+.poster-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 1rem;
+    text-align: center;
+    background: none;
+}
+
+.poster-label-title {
+    color: var(--white);
+    font-weight: 700;
+    font-size: 1.1rem;
+    line-height: 1.2;
+}
+
+.poster-label-note {
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
 /* Poster card figures: labels on one grid row, values on the next, so the values
    line up even when one label wraps onto two lines */
 .card-stats {
@@ -380,6 +428,21 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
 .rule b {
     color: var(--white);
 }
+
+/* Watchlist controls: larger mode switch and toggle (keyed widgets get st-key-<key> classes) */
+.st-key-wl_mode button {
+    padding: 0.55rem 1.3rem;
+    min-height: 3rem;
+}
+
+.st-key-wl_mode button p {
+    font-size: 1.15rem;
+}
+
+.st-key-wl_known label {
+    transform: scale(1.2);
+    transform-origin: left center;
+}
 """
 
 
@@ -430,15 +493,27 @@ def card_stats(pairs):
 
 
 def poster_card(film, key, caption_html, on_open, id_col="film_key"):
-    """Poster with a caption beneath, in a keyed container; CSS stretches the button over all of it."""
+    """Poster with a caption beneath, in a keyed container; CSS stretches the button over all of it.
+
+    Every poster is drawn the same way (one HTML block with its caption), so cards line up whatever
+    they show. A film flagged `sensitive_poster` shows its title on a blurred poster instead; a film
+    with no poster shows its title on a plain frame.
+    """
+    url    = poster_url(film.poster_path)
+    hidden = bool(getattr(film, "sensitive_poster", False))    # only tables from 05 carry the flag
+    title  = html.escape(film.film_title)
+
+    if url and not hidden:
+        frame = f"<div class='poster-frame'><img src='{url}' alt='{title}'></div>"
+    else:
+        img  = f"<img src='{url}' alt=''>" if url else ""
+        note = "Poster hidden" if url else "No poster"
+        frame = (f"<div class='poster-frame{' poster-hidden' if url else ''}'>{img}"
+                 f"<div class='poster-label'><div class='poster-label-title'>{title}</div>"
+                 f"<div class='poster-label-note'>{note}</div></div></div>")
+
     with st.container(key=key):
-        url = poster_url(film.poster_path)
-        if url:
-            st.image(url, width="stretch")
-        else:
-            st.markdown("<div style='aspect-ratio:2/3; background:var(--surface); "
-                        "border-radius:6px'></div>", unsafe_allow_html=True)
-        st.markdown(caption_html, unsafe_allow_html=True)
+        st.markdown(frame + caption_html, unsafe_allow_html=True)
         st.button(film.film_title, key=f"open_{key}", on_click=on_open, args=(getattr(film, id_col),))
 
 
