@@ -6,9 +6,12 @@ import streamlit as st
 from src.app_data import current_tables, display_name, possessive
 from src.app_ui import card_stats, flag_html, gap, poster_grid, poster_url, runtime_text, stars, stars_exact
 
-SECTIONS = [("watchlist", "On the watchlist", "Unreleased films {whose} watchlist already has."),
-            ("popular",   "Popular UK releases",
-             "The most popular films opening in UK cinemas in the same window, watchlist or not.")]
+WATCHLIST, POPULAR = "On the watchlist", "Popular UK releases"
+BLURB = {
+    WATCHLIST: "Unreleased films {whose} watchlist already has.",
+    POPULAR:   "The most popular films opening in UK cinemas in the same window, watchlist or not.",
+}
+SOURCE = {WATCHLIST: "watchlist", POPULAR: "popular"}
 
 tables   = current_tables()
 coming   = tables["coming"]
@@ -89,15 +92,19 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-for source, heading, blurb in SECTIONS:
-    films = coming[coming["source"] == source].sort_values("pred", ascending=False).reset_index(drop=True)
-    if films.empty:
-        continue
-    st.subheader(f"{heading} · {len(films)}", anchor=False)
-    st.markdown(f"<p class='card-meta'>{blurb.format(whose=whose)}</p>", unsafe_allow_html=True)
-    poster_grid(films, f"coming_{source}",
-                lambda f: coming_caption(f, f.Index + 1, len(films)), open_coming_film,
-                id_col="film_uri")
+counts = coming["source"].value_counts()
+labels = [f"{s} · {counts.get(SOURCE[s], 0)}" for s in (WATCHLIST, POPULAR)]
+choice = st.segmented_control("Which films?", labels, default=labels[0], key="cs_mode",
+                              label_visibility="collapsed") or labels[0]
+section = WATCHLIST if choice == labels[0] else POPULAR
+
+st.markdown(f"<p class='card-meta'>{BLURB[section].format(whose=whose)}</p>", unsafe_allow_html=True)
+
+films = (coming[coming["source"] == SOURCE[section]]
+         .sort_values("pred", ascending=False).reset_index(drop=True))
+poster_grid(films, f"coming_{SOURCE[section]}",
+            lambda f: coming_caption(f, f.Index + 1, len(films)), open_coming_film,
+            id_col="film_uri")
 
 left_out = summary["no_runtime_yet"]
 if isinstance(left_out, str) and left_out:

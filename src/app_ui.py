@@ -429,13 +429,15 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     color: var(--white);
 }
 
-/* Watchlist controls: larger mode switch and toggle (keyed widgets get st-key-<key> classes) */
-.st-key-wl_mode button {
+/* Mode switches on the watchlist and coming-soon pages (keyed widgets get st-key-<key> classes) */
+.st-key-wl_mode button,
+.st-key-cs_mode button {
     padding: 0.55rem 1.3rem;
     min-height: 3rem;
 }
 
-.st-key-wl_mode button p {
+.st-key-wl_mode button p,
+.st-key-cs_mode button p {
     font-size: 1.15rem;
 }
 
