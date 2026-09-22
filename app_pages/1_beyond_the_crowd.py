@@ -31,6 +31,7 @@ def ranking_phrase(s):
 def open_film(film_key):
     st.session_state.open_film = film_key
     st.session_state.ladder_step = 1          # every film starts from "knows nothing"
+    st.session_state.dialog_n = st.session_state.get("dialog_n", 0) + 1
 
 
 def showcase_caption(film):
@@ -88,7 +89,8 @@ def restart_ladder():
 
 
 def film_dialog(film):
-    @st.dialog(film["film_title"], width="large")
+    @st.dialog(film["film_title"] + "\u200b" * (st.session_state.get("dialog_n", 0) % 2),
+        width="large", on_dismiss="rerun")
     def show():
         step = st.session_state.ladder_step
 

@@ -73,3 +73,22 @@ def possessive(name):
 def current_tables():
     """Tables for whichever user is selected (set in app.py)."""
     return load_tables(st.session_state["user"])
+
+INTERIM = DATA.parent / "interim"
+
+
+@st.cache_data
+def load_reviews(user):
+    """The user's own review text by film_key (latest viewing), or {} if unavailable.
+
+    Interim files are never committed, so a deployed app never has them; they are also
+    single-user for now, so they are used only when their profile matches `user`.
+    """
+    profile, viewings = INTERIM / "profile.csv", INTERIM / "viewings.csv"
+    if not (profile.exists() and viewings.exists()):
+        return {}
+    if pd.read_csv(profile)["username"].iloc[0] != user:
+        return {}
+    v = pd.read_csv(viewings, usecols=["film_key", "watched_date", "review_clean"])
+    v = v[v["review_clean"].fillna("").str.strip() != ""].sort_values("watched_date")
+    return v.drop_duplicates("film_key", keep="last").set_index("film_key")["review_clean"].to_dict()

@@ -524,3 +524,9 @@ def poster_grid(films, key_prefix, caption, on_open, id_col="film_key", per_row=
         for i, (col, film) in enumerate(zip(cols, films.iloc[start:start + per_row].itertuples())):
             with col:
                 poster_card(film, f"card_{key_prefix}_{start + i}", caption(film), on_open, id_col)
+
+def excerpt(text, limit=220):
+    """The start of a text, cut at a word boundary with an ellipsis if it runs past `limit` characters."""
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0].rstrip(",;:-") + "…"
