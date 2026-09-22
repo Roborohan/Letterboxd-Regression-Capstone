@@ -105,10 +105,23 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
 }
 
 /* Model ladder (inside the film dialog) */
+.ladder-top {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.ladder-poster {
+    width: 84px;
+    flex: none;
+    border-radius: 6px;
+}
+
 .ladder-head {
     color: var(--muted);
-    font-size: 1rem;
-    line-height: 1.7;
+    font-size: 1.05rem;
+    line-height: 1.6;
 }
 
 .ladder-head b {
@@ -117,13 +130,19 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
 
 .rung {
     display: grid;
-    grid-template-columns: 12rem 1fr 5rem;
+    grid-template-columns: 17rem 1fr 6.5rem;
     align-items: center;
     gap: 1rem;
-    padding: 0.55rem 0;
+    padding: 0.4rem 0;
     border-bottom: 1px solid var(--slate);
-    opacity: 0;
-    animation: rung-in 0.45s ease forwards;
+}
+
+.rung.new {
+    animation: rung-in 0.45s ease both;
+}
+
+.rung.pending {
+    opacity: 0.35;
 }
 
 .rung-label {
@@ -132,7 +151,10 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
 
 .rung-sub {
     color: var(--muted);
-    font-size: 0.85rem;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .track {
@@ -158,6 +180,15 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     background: var(--green);
 }
 
+.move {
+    position: absolute;
+    top: 50%;
+    height: 2px;
+    background: var(--orange);
+    opacity: 0.6;
+    transform: translateY(-50%);
+}
+
 .marker {
     position: absolute;
     top: 50%;
@@ -166,6 +197,15 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     border-radius: 50%;
     background: var(--orange);
     transform: translate(-50%, -50%);
+    z-index: 2;
+}
+
+.marker.prev {
+    width: 9px;
+    height: 9px;
+    background: var(--muted);
+    opacity: 0.7;
+    z-index: 1;
 }
 
 .rung-value {
@@ -197,11 +237,21 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     font-size: 0.8rem;
 }
 
+.ladder-summary {
+    font-size: 1.1rem;
+    margin-top: 0.75rem;
+    animation: rung-in 0.45s ease both;
+}
+
+.ladder-summary b {
+    color: var(--white);
+}
+
 .ladder-note {
     color: var(--muted);
-    font-size: 0.85rem;
-    margin-top: 0.8rem;
-    line-height: 1.5;
+    font-size: 0.78rem;
+    margin: 0.5rem 0 0.75rem;
+    line-height: 1.45;
 }
 
 @keyframes rung-in {
@@ -209,7 +259,124 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     to   { opacity: 1; transform: none; }
 }
 
+/* Poster card figures: small label above a large value */
+.card-stats {
+    display: flex;
+    gap: 1.25rem;
+    margin-top: 0.35rem;
+}
+
+.card-stats .label {
+    display: block;
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.card-stats .value {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--white);
+}
+
+/* Intro page */
+.hero-kicker {
+    color: var(--orange);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-top: 1rem;
+}
+
+.hero-title {
+    font-size: clamp(3rem, 6vw, 5rem);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.035em;
+    margin: 0.5rem 0 1.25rem;
+    color: var(--white);
+}
+
+.stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3rem;
+    padding: 1.5rem 0;
+    margin: 1rem 0 2.5rem;
+    border-top: 1px solid var(--slate);
+    border-bottom: 1px solid var(--slate);
+}
+
+.stat-value {
+    display: block;
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+}
+
+.stat-label {
+    display: block;
+    color: var(--muted);
+    font-size: 0.95rem;
+    max-width: 15rem;
+}
+
+.layers {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 1rem 0 1.75rem;
+}
+
+.layer {
+    background: var(--surface);
+    border-radius: 10px;
+    border-top: 4px solid var(--slate);
+    padding: 1.1rem 1.1rem 1.25rem;
+}
+
+.layer-num {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.layer-label {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0.2rem 0;
+}
+
+.layer-sub {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 0.7rem;
+}
+
+.layer p {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.rule {
+    border-left: 3px solid var(--green);
+    padding: 0.4rem 0 0.4rem 1rem;
+    margin-bottom: 1.5rem;
+    color: var(--muted);
+    max-width: 60rem;
+    line-height: 1.5;
+}
+
+.rule b {
+    color: var(--white);
+}
 """
+
 
 def inject_css():
     st.markdown(f"<style>{CSS}</style>", unsafe_allow_html=True)

@@ -32,3 +32,13 @@ def load_tables():
                 df[col] = df[col].astype("Int64")
         tables[name] = df
     return tables
+
+# The model ladder: (prediction column, label, what the model knows, button text to add this layer).
+# Shared by the intro page and the Beyond the crowd modal so the labels can't drift apart.
+RUNGS = [
+    ("pred_m0",     "Knows nothing",  "My typical rating, same for every film",        None),
+    ("pred_m1",     "+ Crowd score",  "TMDB's average rating",                         "Add the crowd score"),
+    ("pred_m2",     "+ Film details", "Genre, runtime, era, language",                 "Add film details"),
+    ("pred_m3",     "+ My history",   "My past ratings of its director, genres, era",  "Add my history"),
+    ("pred_deploy", "+ Keywords",     "TMDB plot keywords — the final model",          "Add keywords"),
+]

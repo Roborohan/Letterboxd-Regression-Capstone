@@ -1,11 +1,12 @@
 """Letterboxd export loading — moved from 01_data_loading.ipynb."""
 
+import re
 from pathlib import Path
 
 import pandas as pd
 
 REQUIRED_FILES = ["diary.csv", "reviews.csv", "ratings.csv"]
-OPTIONAL_FILES = ["watchlist.csv", "watched.csv"]
+OPTIONAL_FILES = ["watchlist.csv", "watched.csv", "profile.csv"]
 
 
 def load_export(export_dir):
@@ -33,3 +34,23 @@ def load_export(export_dir):
 
 def film_key(df, title_col="Name", year_col="Year"):
     return df[title_col].str.strip() + " (" + df[year_col].astype("Int64").astype(str) + ")"
+
+
+def display_name(profile):
+    """Name to show in the app: Given Name if it is set, otherwise the Username; None without a profile."""
+    if profile is None or profile.empty:
+        return None
+    row = profile.iloc[0]
+    for col in ("Given Name", "Username"):
+        value = row.get(col)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def user_slug(profile):
+    """Folder name for this export's app tables: the Username, lower-case and filesystem-safe."""
+    username = None if profile is None or profile.empty else profile.iloc[0].get("Username")
+    if not isinstance(username, str) or not username.strip():
+        return "default"
+    return re.sub(r"[^a-z0-9_-]", "", username.strip().lower()) or "default"

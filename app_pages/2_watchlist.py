@@ -1,3 +1,3 @@
 import streamlit as st
 
-st.header("Your watchlist")
+st.header("My watchlist")
