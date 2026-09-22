@@ -61,6 +61,7 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
 /* Poster cards: the whole card is one invisible button */
 [class*="st-key-card_"] {
     position: relative;
+    margin-bottom: 1.75rem;
 }
 
 [class*="st-key-card_"] img {
@@ -259,17 +260,21 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     to   { opacity: 1; transform: none; }
 }
 
-/* Poster card figures: small label above a large value */
+/* Poster card figures: labels on one grid row, values on the next, so the values
+   line up even when one label wraps onto two lines */
 .card-stats {
-    display: flex;
-    gap: 1.25rem;
+    display: grid;
+    column-gap: 1.25rem;
+    row-gap: 0.1rem;
+    justify-content: start;
+    align-items: end;
     margin-top: 0.35rem;
 }
 
 .card-stats .label {
-    display: block;
     color: var(--muted);
     font-size: 0.75rem;
+    line-height: 1.25;
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
@@ -412,3 +417,35 @@ def gap(x):
 def poster_url(path):
     """Full TMDB poster URL, or None when the film has no poster."""
     return None if pd.isna(path) or not path else POSTER_BASE + path
+
+
+# ---------- Poster cards ----------
+
+def card_stats(pairs):
+    """Small uppercase labels above large values: [('Predicted', '4.5 ★'), ('Crowd', '7.6 / 10')]."""
+    labels = "".join(f"<span class='label'>{label}</span>" for label, _ in pairs)
+    values = "".join(f"<span class='value'>{value}</span>" for _, value in pairs)
+    return (f"<div class='card-stats' style='grid-template-columns:repeat({len(pairs)}, auto)'>"
+            f"{labels}{values}</div>")
+
+
+def poster_card(film, key, caption_html, on_open, id_col="film_key"):
+    """Poster with a caption beneath, in a keyed container; CSS stretches the button over all of it."""
+    with st.container(key=key):
+        url = poster_url(film.poster_path)
+        if url:
+            st.image(url, width="stretch")
+        else:
+            st.markdown("<div style='aspect-ratio:2/3; background:var(--surface); "
+                        "border-radius:6px'></div>", unsafe_allow_html=True)
+        st.markdown(caption_html, unsafe_allow_html=True)
+        st.button(film.film_title, key=f"open_{key}", on_click=on_open, args=(getattr(film, id_col),))
+
+
+def poster_grid(films, key_prefix, caption, on_open, id_col="film_key", per_row=6):
+    """Rows of poster cards; `caption(film)` returns each card's HTML, `on_open(id)` runs on click."""
+    for start in range(0, len(films), per_row):
+        cols = st.columns(per_row)
+        for i, (col, film) in enumerate(zip(cols, films.iloc[start:start + per_row].itertuples())):
+            with col:
+                poster_card(film, f"card_{key_prefix}_{start + i}", caption(film), on_open, id_col)

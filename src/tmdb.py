@@ -244,3 +244,19 @@ def discover_upcoming(start, end, *, headers, pages=2, region=None):
         r.raise_for_status()
         results.extend(r.json()["results"])
     return results
+
+# ---------- Posters to blur in the app ----------
+
+SENSITIVE_TAG = re.compile(
+    r"unsimulated sex|explicite? sex"
+    r"|erotic|eroticism|erotica"
+    r"|erotic (?:movie|film|thriller|drama|romance|comedy|fantasy|horror)"
+    r"|softcore.*"
+    r"|(?:(?:fe)?male )?nudity"
+)
+
+
+def sensitive_poster(keywords):
+    """True where any TMDB keyword fully matches SENSITIVE_TAG; keywords are '|'-joined strings."""
+    return (keywords.fillna("").str.split("|")
+            .apply(lambda tags: any(SENSITIVE_TAG.fullmatch(t.strip()) for t in tags)))
