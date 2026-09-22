@@ -8,12 +8,10 @@ st.set_page_config(page_title="Beyond the Crowd Score", page_icon="🎬", layout
 inject_css()
 
 pages = [
-    st.Page("app_pages/1_does_it_work.py",             title="01 · Does it work?", default=True),
-    st.Page("app_pages/2_what_made_the_difference.py", title="02 · What changed?"),
-    st.Page("app_pages/3_is_it_useful.py",             title="03 · Your watchlist"),
-    st.Page("app_pages/4_why.py",                      title="04 · Why?"),
-    st.Page("app_pages/5_coming_soon.py",              title="Coming soon"),
-    st.Page("app_pages/6_findings.py",                 title="Findings"),
+    st.Page("app_pages/0_intro.py",             title="Intro", default=True),
+    st.Page("app_pages/1_beyond_the_crowd.py",  title="Beyond the crowd"),
+    st.Page("app_pages/2_watchlist.py",         title="Your watchlist"),
+    st.Page("app_pages/3_coming_soon.py",       title="Coming soon"),
 ]
 
 st.navigation(pages, position="top").run()
