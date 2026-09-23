@@ -1,6 +1,7 @@
 """Beyond the Crowd Score — Streamlit app (entry point and page router)."""
 
 from pathlib import Path
+import base64
 
 import streamlit as st
 
@@ -8,6 +9,12 @@ from src.app_data import display_name, list_users
 from src.app_ui import inject_css
 
 LOGO = Path(__file__).parent / "assets" / "logo.png"
+
+TMDB_LOGO = Path(__file__).parent / "assets" / "tmdb.png"
+
+def data_uri(path):
+    """A local image as an inline data: URI — Streamlit can't serve local files inside raw HTML."""
+    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
 
 st.set_page_config(page_title="Beyond the Crowd Score", page_icon=str(LOGO), layout="wide")
 st.logo(str(LOGO), size="large")
@@ -33,9 +40,16 @@ pages = [
 
 st.navigation(pages, position="top").run()
 
+tmdb_logo = (f"<img src='{data_uri(TMDB_LOGO)}' alt='TMDB' style='height:14px'>"
+             if TMDB_LOGO.exists() else "")
+
 st.markdown(
-    "<p style='color:var(--muted); font-size:0.8rem; margin-top:3rem; padding-top:1rem; "
-    "border-top:1px solid var(--slate)'>Built from a Letterboxd export. Film data and posters from TMDB. "
-    "This product uses the TMDB API but is not endorsed or certified by TMDB.</p>",
+    "<div style='display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; "
+    "color:var(--muted); font-size:0.8rem; margin-top:3rem; padding-top:1rem; "
+    "border-top:1px solid var(--slate)'>"
+    f"{tmdb_logo}"
+    "<span>Built from a Letterboxd export. Film data and posters from TMDB. "
+    "This product uses the TMDB API but is not endorsed or certified by TMDB.</span>"
+    "</div>",
     unsafe_allow_html=True,
 )

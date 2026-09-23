@@ -6,12 +6,10 @@ import streamlit as st
 from src.app_data import current_tables, display_name, possessive
 from src.app_ui import card_stats, flag_html, gap, poster_grid, poster_url, runtime_text, stars, stars_exact
 
-WATCHLIST, POPULAR = "On the watchlist", "Popular UK releases"
-BLURB = {
-    WATCHLIST: "Unreleased films {whose} watchlist already has.",
-    POPULAR:   "The most popular films opening in UK cinemas in the same window, watchlist or not.",
-}
-SOURCE = {WATCHLIST: "watchlist", POPULAR: "popular"}
+REGION_NAMES = {"GB": "the UK", "US": "the US", "IE": "Ireland", "CA": "Canada",
+                "AU": "Australia", "NZ": "New Zealand", "IN": "India", "DE": "Germany",
+                "FR": "France", "ES": "Spain", "IT": "Italy", "NL": "the Netherlands",
+                "JP": "Japan", "KR": "South Korea", "BR": "Brazil", "MX": "Mexico"}
 
 tables   = current_tables()
 coming   = tables["coming"]
@@ -21,6 +19,16 @@ name     = display_name(st.session_state["user"])
 whose    = possessive(name)
 
 recent   = summary["recent_mean"]
+region   = summary.get("region")
+in_area  = (f"in {REGION_NAMES.get(region, region)}" if isinstance(region, str) and region
+            else "worldwide")
+
+WATCHLIST, POPULAR = "On the watchlist", f"Popular releases {in_area}"
+BLURB = {
+    WATCHLIST: "Unreleased films {whose} watchlist already has.",
+    POPULAR:   f"The most popular films opening {in_area} in the same window, watchlist or not.",
+}
+SOURCE = {WATCHLIST: "watchlist", POPULAR: "popular"}
 
 
 def open_coming_film(uri):
