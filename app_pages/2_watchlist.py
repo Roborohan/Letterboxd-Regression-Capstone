@@ -15,6 +15,9 @@ FAVOURITES, MISSES = "Likely favourites", "Likely misses"
 ABOVE, BELOW       = "Above the crowd", "Below the crowd"
 MODES              = [FAVOURITES, MISSES, ABOVE, BELOW]
 
+ALL, KNOWN, VERY = "All films", "Well known", "Very well known"
+LEVELS           = [ALL, KNOWN, VERY]
+
 SCROLL_TOP_JS = """
 <script>
 const doc = window.parent.document;
@@ -69,10 +72,11 @@ with left:
     mode = st.segmented_control("Sort", MODES, default=FAVOURITES, key="wl_mode",
                                 label_visibility="collapsed", on_change=reset_paging) or FAVOURITES
 with right:
-    well_known = st.toggle(
-        "Well-known films only", key="wl_known", on_change=reset_paging,
-        help=f"At least {summary['rated_median_votes']:,.0f} TMDB votes — as well known as a typical "
-             f"film {name} has rated.",
+    level = st.select_slider(
+        "How well known?", LEVELS, value=ALL, key="wl_known", on_change=reset_paging,
+        help=f"Well known: at least {summary['rated_median_votes']:,.0f} TMDB votes, as well "
+             f"known as a typical film {name} has rated. Very well known: at least "
+             f"{summary['rated_votes_p75']:,.0f}, better known than three-quarters of them.",
     )
 
 crowd_range = (f"the crowd score is between {summary['crowd_lo']:.1f} and {summary['crowd_hi']:.1f}/10, "
@@ -95,8 +99,9 @@ st.markdown("<p class='card-meta'><span style='color:var(--orange)'>⚑</span> m
 # ---------- Filter, sort and page ----------
 
 films = wl
-if well_known:
-    films = films[films["vote_count"] >= summary["rated_median_votes"]]
+if level != ALL:
+    cut = summary["rated_median_votes"] if level == KNOWN else summary["rated_votes_p75"]
+    films = films[films["vote_count"] >= cut]
 
 mean = summary["rated_mean"]
 if mode == FAVOURITES:
@@ -186,8 +191,13 @@ def why_dialog(film):
             thumb = ""
         facts = " · ".join(str(x) for x in [film["film_year"], runtime_text(film["runtime"]), film["director"]]
                            if pd.notna(x) and x)
-        st.markdown(f"<div class='ladder-top'>{thumb}<div class='ladder-head'>{facts}</div></div>",
+        genres = film["genres"].replace("|", ", ") if isinstance(film["genres"], str) else ""
+        st.markdown(f"<div class='ladder-top'>{thumb}<div class='ladder-head'>{html.escape(facts)}"
+                    + (f"<br>{html.escape(genres)}" if genres else "") + "</div></div>",
                     unsafe_allow_html=True)
+        if isinstance(film["overview"], str) and film["overview"].strip():
+            st.markdown(f"<p class='card-meta' style='max-width:55rem; margin-bottom:0.8rem'>"
+                        f"{html.escape(film['overview'])}</p>", unsafe_allow_html=True)
 
         has_gap = pd.notna(film["gap"])
         st.markdown(

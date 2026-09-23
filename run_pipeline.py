@@ -162,9 +162,9 @@ def main():
     wl_out, final_rf, ranges = predict_watchlist(rated_df, films, wl_pred, X_fit, X_wl, deploy_params)
 
     OUT_COLS = ["film_uri", "film_key", "film_title", "film_year", "tmdb_id",
-                "pred", "crowd_pred", "gap", "vote_average", "vote_count", "runtime", "genres",
-                "director", "original_language", "release_date", "poster_path", "out_of_range",
-                "sensitive_poster"]
+            "pred", "crowd_pred", "gap", "vote_average", "vote_count", "runtime", "genres",
+            "overview", "director", "original_language", "release_date", "poster_path",
+            "out_of_range", "sensitive_poster"]
     (wl_out[OUT_COLS].sort_values("pred", ascending=False)
      .to_csv(APP / "watchlist_predictions.csv", index=False))
     print(f"{len(wl_out)} films predicted, {wl_out['gap'].notna().sum()} with a crowd gap, "
@@ -179,8 +179,8 @@ def main():
                                                  region=region, known_ids=known)
     cs = coming_soon_table(rated_df, upcoming, popular_top, genres, languages, X_fit, nocrowd_params)
     CS_COLS = ["source", "film_uri", "film_key", "film_title", "film_year", "tmdb_id", "pred",
-               "release_shown", "runtime", "genres", "director", "original_language",
-               "poster_path", "out_of_range", "sensitive_poster"]
+            "release_shown", "runtime", "genres", "overview", "director", "original_language",
+            "poster_path", "out_of_range", "sensitive_poster"]
     cs[CS_COLS].to_csv(APP / "coming_soon.csv", index=False)
     print(f"{(cs['source'] == 'watchlist').sum()} from the watchlist, "
           f"{(cs['source'] == 'popular').sum()} popular releases")
@@ -204,6 +204,7 @@ def main():
         "crowd_lo":           ranges["crowd_lo"],
         "crowd_hi":           ranges["crowd_hi"],
         "rated_median_votes": rated_df.drop_duplicates("film_key")["vote_count"].median(),
+        "rated_votes_p75":    rated_df.drop_duplicates("film_key")["vote_count"].quantile(0.75),
         **{f"{c}_min": films[c].min() for c in ["runtime", "vote_average", "vote_count", "popularity"]},
         **{f"{c}_max": films[c].max() for c in ["runtime", "vote_average", "vote_count", "popularity"]},
         "film_year_min":      ranges["film_year_min"],

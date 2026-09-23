@@ -64,6 +64,9 @@ def coming_dialog(film):
         genres = film["genres"].replace("|", ", ") if isinstance(film["genres"], str) else ""
         st.markdown(f"<div class='ladder-top'>{thumb}<div class='ladder-head'>{html.escape(facts)}<br>"
                     f"{html.escape(genres)}</div></div>", unsafe_allow_html=True)
+        if isinstance(film["overview"], str) and film["overview"].strip():
+            st.markdown(f"<p class='card-meta' style='max-width:55rem; margin-bottom:0.8rem'>"
+                        f"{html.escape(film['overview'])}</p>", unsafe_allow_html=True)
 
         st.markdown(
             card_stats([("Predicted", stars(film["pred"])),

@@ -441,9 +441,9 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     font-size: 1.15rem;
 }
 
-.st-key-wl_known label {
-    transform: scale(1.2);
-    transform-origin: left center;
+.st-key-wl_known label p,
+.st-key-wl_known [data-testid="stWidgetLabel"] p {
+    font-size: 1.05rem;
 }
 """
 
