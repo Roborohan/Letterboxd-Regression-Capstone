@@ -34,9 +34,18 @@ def clean_review(text):
 
 
 def build_viewings(export):
-    """One row per rated viewing, in watched order — the spine 01 writes."""
-    spine = export["diary"].merge(export["reviews"][["Letterboxd URI", "Review"]],
-                                  on="Letterboxd URI", how="left", validate="one_to_one")
+    """One row per rated viewing, in watched order — the spine 01 writes.
+
+    Reviews are optional: an export without reviews.csv still produces the same columns,
+    with empty review text and a word count of 0.
+    """
+    diary = export["diary"]
+    if "reviews" in export:
+        spine = diary.merge(export["reviews"][["Letterboxd URI", "Review"]],
+                            on="Letterboxd URI", how="left", validate="one_to_one")
+    else:
+        spine = diary.assign(Review=pd.NA)
+
     spine = spine.rename(columns=RENAME)
     spine["logged_date"]  = pd.to_datetime(spine["logged_date"])
     spine["watched_date"] = pd.to_datetime(spine["watched_date"])
