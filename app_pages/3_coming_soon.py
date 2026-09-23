@@ -25,14 +25,15 @@ in_area  = (f"in {REGION_NAMES.get(region, region)}" if isinstance(region, str) 
 
 WATCHLIST, POPULAR = "On the watchlist", f"Popular releases {in_area}"
 BLURB = {
-    WATCHLIST: "Unreleased films {whose} watchlist already has.",
-    POPULAR:   f"The most popular films opening {in_area} in the same window, watchlist or not.",
+    WATCHLIST: "Unreleased films {whose} watchlist already has — the recognisable ones are usually here.",
+    POPULAR:   f"The most popular films opening {in_area} in the same window that aren't already "
+               f"on {{whose}} watchlist.",
 }
 SOURCE = {WATCHLIST: "watchlist", POPULAR: "popular"}
 
 
-def open_coming_film(uri):
-    st.session_state.cs_open = uri
+def open_coming_film(film_key):
+    st.session_state.cs_open = film_key
 
 
 def release_text(date):
@@ -115,7 +116,7 @@ films = (coming[coming["source"] == SOURCE[section]]
          .sort_values("pred", ascending=False).reset_index(drop=True))
 poster_grid(films, f"coming_{SOURCE[section]}",
             lambda f: coming_caption(f, f.Index + 1, len(films)), open_coming_film,
-            id_col="film_uri")
+            id_col="film_key")
 
 left_out = summary["no_runtime_yet"]
 if isinstance(left_out, str) and left_out:
@@ -125,4 +126,6 @@ if isinstance(left_out, str) and left_out:
 
 opened = st.session_state.pop("cs_open", None)
 if opened is not None:
-    coming_dialog(coming.loc[coming["film_uri"] == opened].iloc[0])
+    match = coming.loc[coming["film_key"] == opened]
+    if not match.empty:
+        coming_dialog(match.iloc[0])
