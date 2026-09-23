@@ -41,8 +41,9 @@ def release_text(date):
 
 
 def coming_caption(film, rank, of):
+    length = runtime_text(film.runtime)
     return (f"<div class='card-meta'>{release_text(film.release_shown)}"
-            + (f" · {runtime_text(film.runtime)}" if runtime_text(film.runtime) else "") + "</div>"
+            + (f" · {length}" if length else "") + "</div>"
             + card_stats([("Predicted", stars(film.pred)), ("Vs recent", gap(film.pred - recent))])
             + f"<div class='card-meta'>#{rank} of {of}</div>"
             + flag_html(film.out_of_range))

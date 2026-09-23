@@ -5,16 +5,16 @@ re-runs for any export, so both use the same code and the same defaults.
 """
 
 import numpy as np
-from scipy.stats import spearmanr
-from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
-
 import pandas as pd
+from scipy.stats import spearmanr
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 
 from src.features import (PLAIN_NUMERIC, LOG_NUMERIC, HISTORY_KEYS,
                           genre_vocabulary, top_n_vocabulary, build_features_F,
                           build_features_H, keyword_scores, add_keyword_score)
+from src.tmdb import sensitive_poster
 
 CV_SPLITS = 5
 
@@ -132,6 +132,7 @@ def build_ladder(df, test_fraction=TEST_FRACTION, verbose=True):
                         "crowd": crowd_model}}
     return train, test, preds, parts
 
+
 LADDER_COLS = ["pred_m0", "pred_m1", "pred_m2", "pred_m3", "pred_deploy"]
 
 TEST_OUT_COLS = ["film_key", "film_title", "film_year", "watched_date", "rating",
@@ -141,7 +142,8 @@ TEST_OUT_COLS = ["film_key", "film_title", "film_year", "watched_date", "rating"
 def test_table(test, preds):
     """The app's test_predictions table: the held-out films with every rung's prediction."""
     return (test[TEST_OUT_COLS].reset_index(drop=True)
-            .assign(**{c: preds[c] for c in LADDER_COLS}))
+            .assign(**{c: preds[c] for c in LADDER_COLS},
+                    sensitive_poster=sensitive_poster(test["keywords"]).values))
 
 
 def model_summary(df, train, test, preds):

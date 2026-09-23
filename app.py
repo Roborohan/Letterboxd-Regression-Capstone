@@ -1,20 +1,22 @@
 """Beyond the Crowd Score — Streamlit app (entry point and page router)."""
 
-from pathlib import Path
 import base64
+from pathlib import Path
 
 import streamlit as st
 
 from src.app_data import display_name, list_users
 from src.app_ui import inject_css
 
-LOGO = Path(__file__).parent / "assets" / "logo.png"
-
+LOGO      = Path(__file__).parent / "assets" / "logo.png"
 TMDB_LOGO = Path(__file__).parent / "assets" / "tmdb.png"
 
+
+@st.cache_data
 def data_uri(path):
     """A local image as an inline data: URI — Streamlit can't serve local files inside raw HTML."""
-    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
+    return "data:image/png;base64," + base64.b64encode(Path(path).read_bytes()).decode()
+
 
 st.set_page_config(page_title="Beyond the Crowd Score", page_icon=str(LOGO), layout="wide")
 st.logo(str(LOGO), size="large")
@@ -22,8 +24,9 @@ inject_css()
 
 users = list_users()
 if not users:
-    st.error("No processed data found. Run notebooks 01–05 on a Letterboxd export first — "
-             "they write the app's files to data/processed/<username>/.")
+    st.error("No processed data found. Run `python run_pipeline.py` on a Letterboxd export "
+             "(or notebooks 01–05) first — they write the app's files to "
+             "data/processed/<username>/.")
     st.stop()
 
 if len(users) > 1:
@@ -40,7 +43,7 @@ pages = [
 
 st.navigation(pages, position="top").run()
 
-tmdb_logo = (f"<img src='{data_uri(TMDB_LOGO)}' alt='TMDB' style='height:14px'>"
+tmdb_logo = (f"<img src='{data_uri(str(TMDB_LOGO))}' alt='TMDB' style='height:14px'>"
              if TMDB_LOGO.exists() else "")
 
 st.markdown(

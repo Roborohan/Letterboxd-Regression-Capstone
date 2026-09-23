@@ -305,4 +305,6 @@ if st.session_state.pop("wl_scroll_to_top", False):
 
 opened = st.session_state.pop("wl_open", None)
 if opened is not None:
-    why_dialog(wl.loc[wl["film_uri"] == opened].iloc[0])
+    match = wl.loc[wl["film_uri"] == opened]
+    if not match.empty:
+        why_dialog(match.iloc[0])

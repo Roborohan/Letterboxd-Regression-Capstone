@@ -10,7 +10,7 @@ name    = display_name(st.session_state["user"])
 whose   = possessive(name)
 
 n_rated = int(summary["n_rated"])
-n_test  = len(tables["test"])
+n_test  = int(summary["n_test"])
 n_watch = len(tables["watchlist"])
 period  = (f"{pd.Timestamp(summary['first_watched']):%b %Y} – "
            f"{pd.Timestamp(summary['last_watched']):%b %Y}")

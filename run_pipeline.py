@@ -1,14 +1,16 @@
 """Run the whole pipeline on one Letterboxd export.
 
     python run_pipeline.py [--export path/to/letterboxd-export] [--date YYYY-MM-DD]
-                           [--region US] [--name "Their Name"]
+                           [--region US] [--name "Their Name"] [--tag test]
 
 With no arguments it uses the one letterboxd-* folder in the project root, or
 LETTERBOXD_EXPORT_DIR from .env, and takes the display name and cinema region from the
 export's profile. The flags are there for when the profile doesn't say.
 
 Writes the app's files to data/processed/<username>/ and the working files to
-data/interim/<username>/, so several people's exports can sit side by side.
+data/interim/<username>/, so several people's exports can sit side by side. A run
+overwrites the working files the notebooks use for that user, so use --tag for a trial
+run, or re-run 01-03 afterwards to restore a hand-reviewed dataset.
 
 The notebooks (01-05) remain the record of the analysis for the export they were run on.
 This repeats the same steps, from the same code in src/, for any export — with one
@@ -50,6 +52,9 @@ def parse_args():
                    help="cinema region for coming soon (default: from the profile's location)")
     p.add_argument("--name", default=None,
                    help="display name for the app (default: the export's profile)")
+    p.add_argument("--tag", default=None,
+                   help="suffix for the folder name, e.g. --tag test writes to "
+                        "<username>-test/ instead of overwriting an existing run")
     p.add_argument("--min-films", type=int, default=MIN_FILMS,
                    help=f"minimum rated diary entries (default: {MIN_FILMS})")
     return p.parse_args()
@@ -84,12 +89,14 @@ def main():
     step("Loading the export")
     export  = load_export(export_dir)
     profile = export.get("profile")
-    user    = set_active_user(user_slug(profile))
+    user    = user_slug(profile) + (f"-{args.tag}" if args.tag else "")
+    set_active_user(user)
     INTERIM, APP = interim_dir(user), app_dir(user)
     name = (args.name or os.getenv(f"DISPLAY_NAME_{user.upper()}")
             or display_name(profile) or user)
     region = args.region or region_from_profile(profile)
     print(f"user: {user}   display name: {name}   region: {region or 'worldwide'}")
+    print(f"notebooks 02-05 will now read this user's files ({INTERIM})")
 
     viewings = build_viewings(export)
     if len(viewings) < args.min_films:
@@ -99,7 +106,9 @@ def main():
     print(f"{len(viewings)} rated viewings, "
           f"{viewings['watched_date'].min().date()} to {viewings['watched_date'].max().date()}")
     viewings.to_csv(INTERIM / "viewings.csv", index=False)
-    pd.DataFrame({"username": [user], "display_name": [name]}).to_csv(APP / "profile.csv", index=False)
+    profile_row = pd.DataFrame({"username": [user], "display_name": [name]})
+    profile_row.to_csv(APP / "profile.csv", index=False)
+    profile_row.to_csv(INTERIM / "profile.csv", index=False)      # 05 reads it from here
 
     # ---------- TMDB ----------
     step("Matching rated films to TMDB")
@@ -162,9 +171,9 @@ def main():
     wl_out, final_rf, ranges = predict_watchlist(rated_df, films, wl_pred, X_fit, X_wl, deploy_params)
 
     OUT_COLS = ["film_uri", "film_key", "film_title", "film_year", "tmdb_id",
-            "pred", "crowd_pred", "gap", "vote_average", "vote_count", "runtime", "genres",
-            "overview", "director", "original_language", "release_date", "poster_path",
-            "out_of_range", "sensitive_poster"]
+                "pred", "crowd_pred", "gap", "vote_average", "vote_count", "runtime", "genres",
+                "overview", "director", "original_language", "release_date", "poster_path",
+                "out_of_range", "sensitive_poster"]
     (wl_out[OUT_COLS].sort_values("pred", ascending=False)
      .to_csv(APP / "watchlist_predictions.csv", index=False))
     print(f"{len(wl_out)} films predicted, {wl_out['gap'].notna().sum()} with a crowd gap, "
@@ -179,8 +188,8 @@ def main():
                                                  region=region, known_ids=known)
     cs = coming_soon_table(rated_df, upcoming, popular_top, genres, languages, X_fit, nocrowd_params)
     CS_COLS = ["source", "film_uri", "film_key", "film_title", "film_year", "tmdb_id", "pred",
-            "release_shown", "runtime", "genres", "overview", "director", "original_language",
-            "poster_path", "out_of_range", "sensitive_poster"]
+               "release_shown", "runtime", "genres", "overview", "director",
+               "original_language", "poster_path", "out_of_range", "sensitive_poster"]
     cs[CS_COLS].to_csv(APP / "coming_soon.csv", index=False)
     print(f"{(cs['source'] == 'watchlist').sum()} from the watchlist, "
           f"{(cs['source'] == 'popular').sum()} popular releases")
@@ -188,8 +197,9 @@ def main():
     # films left out of coming soon because TMDB has no runtime yet
     in_window = (wl["release_date"].pipe(pd.to_datetime, errors="coerce").between(
         date, date + pd.Timedelta(days=WINDOW_DAYS), inclusive="right"))
+    unreleased = wl["vote_count"] < int(films["vote_count"].min())   # as in select_films
     no_runtime = pd.concat([
-        wl.loc[in_window & (wl["runtime"].fillna(0) <= 0), "tmdb_title"],
+        wl.loc[unreleased & in_window & (wl["runtime"].fillna(0) <= 0), "tmdb_title"],
         all_upcoming.loc[all_upcoming["runtime"].fillna(0) <= 0, "tmdb_title"],
     ]).sort_values()
 
@@ -219,6 +229,8 @@ def main():
 
     step("Done")
     print(f"app files written to {APP}")
+    print(f"working files in {INTERIM} — notebooks 02-05 read these, so re-run 01-03 "
+          f"before using the notebooks on a hand-reviewed dataset")
     print("start the app with:  streamlit run app.py")
 
 

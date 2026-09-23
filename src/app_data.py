@@ -76,6 +76,7 @@ def current_tables():
     return load_tables(st.session_state["user"])
 
 
+@st.cache_data
 def load_reviews(user):
     """The user's own review text by film_key (latest viewing), or {} if unavailable.
 

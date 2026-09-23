@@ -55,6 +55,7 @@ def user_slug(profile):
         return "default"
     return re.sub(r"[^a-z0-9_-]", "", username.strip().lower()) or "default"
 
+
 # Letterboxd's Location is free text; these cover the common forms, and anything
 # unrecognised falls back to no region (worldwide release dates) rather than a guess.
 REGIONS = {

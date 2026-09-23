@@ -5,6 +5,9 @@ rated viewing, the flags, the gap against the crowd-based estimate, and the rate
 behind each prediction. The notebook keeps the exploration; the pipeline calls these.
 """
 
+import json
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
@@ -13,12 +16,7 @@ from sklearn.linear_model import LinearRegression
 from src.features import (PLAIN_NUMERIC, LOG_NUMERIC, HISTORY_KEYS,
                           build_features_F, build_features_H,
                           keyword_scores, add_keyword_score)
-from src.tmdb import sensitive_poster
-
-import json
-from pathlib import Path
-
-from src.tmdb import discover_upcoming, fetch_all_details
+from src.tmdb import discover_upcoming, fetch_all_details, sensitive_poster
 
 MAX_SHORT    = 40      # Academy definition of a short, in minutes
 WINDOW_DAYS  = 90      # how far ahead coming soon looks
@@ -143,6 +141,7 @@ def neighbour_table(final_rf, X_fit, X_wl, rated_df, wl_out, n_neighbours=N_NEIG
         sensitive_poster(films.set_index("film_key")["keywords"]))
     return neighbours
 
+
 CROWD_COLS = ["vote_average", "log_vote_count", "log_popularity"]
 
 
@@ -172,7 +171,7 @@ def popular_releases(prediction_date, *, headers, cache_dir, region="GB", pages=
                                 cache_path=cache_dir / f"upcoming_details_{region}_"
                                                        f"{prediction_date.date()}.json")
     details["popularity_rank"] = range(1, len(details) + 1)
-    details["uk_release"] = [d["release_date"] for d in popular]
+    details["region_release"] = [d["release_date"] for d in popular]
 
     long_enough = details["runtime"] > MAX_SHORT       # also excludes runtime 0: not known yet
     return details[long_enough].head(top_n).copy(), details
@@ -186,7 +185,7 @@ def coming_soon_table(rated_df, upcoming, popular_top, genres, languages, X_fit,
                                 film_title=popular_top["tmdb_title"],
                                 film_year=pd.to_datetime(popular_top["release_date"]).dt.year,
                                 film_uri=None,
-                                release_shown=popular_top["uk_release"])
+                                release_shown=popular_top["region_release"])
     cs_pop["film_key"] = cs_pop["film_title"] + " (" + cs_pop["film_year"].astype(str) + ")"
 
     cs = pd.concat([cs_wl, cs_pop], ignore_index=True)
