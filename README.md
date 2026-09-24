@@ -2,6 +2,8 @@
 
 **Can a model learn what one person likes, beyond what everyone else likes?**
 
+**[Try it →](https://beyond-the-crowd-score.streamlit.app/)**
+
 Film ratings sites answer "is this good?" with a crowd average. This project asks a
 narrower question: given one viewer's rating history, can a model predict *their* rating
 better than the crowd score can — and can it say why?
