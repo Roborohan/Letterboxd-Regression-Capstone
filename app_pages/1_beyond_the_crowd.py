@@ -124,14 +124,19 @@ def film_dialog(film):
 # ---------- Page ----------
 
 st.header("Beyond the crowd", anchor=False)
+st.markdown("<p class='card-meta' style='margin-top:-0.4rem'>Does it work? Films the model had "
+            "never seen, predicted and then checked.</p>", unsafe_allow_html=True)
 
 st.markdown(
-    f"<p class='lead'>Tested on {int(summary['n_test'])} films it had never seen, the model's predictions "
-    f"were off by <b>{summary['mae_deploy']:.2f}&nbsp;★</b> on average, against "
-    f"<b>{summary['mae_m1']:.2f}&nbsp;★</b> for the crowd score — and it ranked {whose} films "
+    f"<p class='lead'>These are films {name} has already watched and rated — the "
+    f"{int(summary['n_test'])} most recent, held back while the model was built. It predicted every "
+    f"one of them blind, so the predictions can be checked against what {name} actually gave them. "
+    f"They were off by <b>{summary['mae_deploy']:.2f}&nbsp;★</b> on average, against "
+    f"<b>{summary['mae_m1']:.2f}&nbsp;★</b> for the crowd score — and the model ranked {whose} films "
     f"{ranking_phrase(summary)}.</p>"
-    f"<p class='card-meta'>The {SHOWCASE_N} best-known films in the test set, by number of TMDB votes. "
-    f"Open one to see how its prediction was built.</p>",
+    f"<p class='card-meta'>Below: the {SHOWCASE_N} best-known of those films, by number of TMDB votes — "
+    f"picked for recognisability, not for how well they were predicted. Open one to watch its prediction "
+    f"being built.</p>",
     unsafe_allow_html=True,
 )
 

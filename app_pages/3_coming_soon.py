@@ -105,19 +105,23 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-counts = coming["source"].value_counts()
-labels = [f"{s} · {counts.get(SOURCE[s], 0)}" for s in (WATCHLIST, POPULAR)]
-choice = st.segmented_control("Which films?", labels, default=labels[0], key="cs_mode",
-                              label_visibility="collapsed") or labels[0]
+counts  = coming["source"].value_counts()
+labels  = [f"{s} · {counts.get(SOURCE[s], 0)}" for s in (WATCHLIST, POPULAR)]
+default = labels[0] if counts.get(SOURCE[WATCHLIST], 0) else labels[1]   # never open on an empty tab
+choice  = st.segmented_control("Which films?", labels, default=default, key="cs_mode",
+                               label_visibility="collapsed") or default
 section = WATCHLIST if choice == labels[0] else POPULAR
 
 st.markdown(f"<p class='card-meta'>{BLURB[section].format(whose=whose)}</p>", unsafe_allow_html=True)
 
 films = (coming[coming["source"] == SOURCE[section]]
          .sort_values("pred", ascending=False).reset_index(drop=True))
-poster_grid(films, f"coming_{SOURCE[section]}",
-            lambda f: coming_caption(f, f.Index + 1, len(films)), open_coming_film,
-            id_col="film_key")
+if films.empty:
+    st.info(f"Nothing here for this window — no unreleased films on {whose} watchlist right now.")
+else:
+    poster_grid(films, f"coming_{SOURCE[section]}",
+                lambda f: coming_caption(f, f.Index + 1, len(films)), open_coming_film,
+                id_col="film_key")
 
 left_out = summary["no_runtime_yet"]
 if isinstance(left_out, str) and left_out:
