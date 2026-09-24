@@ -43,3 +43,21 @@ def app_dir(username=None):
     folder = PROCESSED / (username or active_user())
     folder.mkdir(parents=True, exist_ok=True)
     return folder
+
+def require_user(expected):
+    """The active user, but stop if it isn't the one this notebook is written for.
+
+    The notebooks read and write whichever user ran last (01, or run_pipeline.py), so
+    running them after a pipeline run on someone else's export would quietly work on
+    their files. This makes that a stop rather than a surprise.
+    """
+    user = active_user()
+    if user != expected:
+        raise RuntimeError(
+            f"Active user is '{user}', but this notebook is written for '{expected}'.\n"
+            f"Run 01_data_loading on {expected}'s export first, or set it directly with:\n"
+            f"    from src.paths import set_active_user; set_active_user('{expected}')\n"
+            f"(run_pipeline.py sets the active user to whichever export it just processed.)"
+        )
+    print(f"active user: {user}")
+    return user

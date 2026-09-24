@@ -182,6 +182,17 @@ def main():
     neighbours = neighbour_table(final_rf, X_fit, X_wl, rated_df, wl_out)
     neighbours.to_csv(APP / "neighbours.csv", index=False)
 
+    # Review text for the films that can actually appear in the app: only a film shown as one of
+    # a prediction's neighbours is ever quoted, so nothing else is published.
+    shown   = set(neighbours["neighbour_key"])
+    reviews = (viewings[viewings["film_key"].isin(shown)]
+               .sort_values("watched_date")
+               .drop_duplicates("film_key", keep="last")[["film_key", "review_clean"]])
+    reviews = reviews[reviews["review_clean"].fillna("").str.strip() != ""]
+    reviews.to_csv(APP / "reviews.csv", index=False)
+    print(f"{len(reviews)} reviews published for the app "
+          f"(of {len(shown)} films that can appear as a neighbour)")
+
     step(f"Coming soon ({region or 'worldwide'}, {WINDOW_DAYS} days from {date.date()})")
     known = set(wl["tmdb_id"].dropna().astype(int)) | set(films["tmdb_id"].dropna().astype(int))
     popular_top, all_upcoming = popular_releases(date, headers=headers, cache_dir=CACHE,

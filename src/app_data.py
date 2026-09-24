@@ -78,13 +78,20 @@ def current_tables():
 
 @st.cache_data
 def load_reviews(user):
-    """The user's own review text by film_key (latest viewing), or {} if unavailable.
+    """Review text by film_key, latest viewing of each film.
 
-    Interim files are never committed, so a deployed app never has them.
+    Locally this reads the full interim data; a deployed copy has only the published subset
+    (the films that can appear as a neighbour), written by the pipeline. Either way the app
+    shows the same thing — reviews explain a prediction and are never a model input.
     """
-    viewings = Path(__file__).resolve().parent.parent / "data" / "interim" / user / "viewings.csv"
-    if not viewings.exists():
-        return {}
-    v = pd.read_csv(viewings, usecols=["film_key", "watched_date", "review_clean"])
-    v = v[v["review_clean"].fillna("").str.strip() != ""].sort_values("watched_date")
-    return v.drop_duplicates("film_key", keep="last").set_index("film_key")["review_clean"].to_dict()
+    local = Path(__file__).resolve().parent.parent / "data" / "interim" / user / "viewings.csv"
+    if local.exists():
+        v = pd.read_csv(local, usecols=["film_key", "watched_date", "review_clean"])
+        v = v.sort_values("watched_date").drop_duplicates("film_key", keep="last")
+    else:
+        published = DATA / user / "reviews.csv"
+        if not published.exists():
+            return {}
+        v = pd.read_csv(published)
+    v = v[v["review_clean"].fillna("").str.strip() != ""]
+    return v.set_index("film_key")["review_clean"].to_dict()

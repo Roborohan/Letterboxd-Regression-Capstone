@@ -1,9 +1,11 @@
 """Beyond the Crowd Score — Streamlit app (entry point and page router)."""
 
 import base64
+import os
 from pathlib import Path
 
 import streamlit as st
+from dotenv import load_dotenv
 
 from src.app_data import display_name, list_users
 from src.app_ui import inject_css
@@ -28,6 +30,13 @@ if not users:
              "(or notebooks 01–05) first — they write the app's files to "
              "data/processed/<username>/.")
     st.stop()
+
+# DEFAULT_USER (.env locally, Secrets when deployed) picks who the app opens on;
+# without it the users are simply alphabetical.
+load_dotenv(".env")
+default = os.getenv("DEFAULT_USER")
+if default in users:
+    users = [default] + [u for u in users if u != default]
 
 if len(users) > 1:
     st.selectbox("Whose films?", users, format_func=display_name, key="user")

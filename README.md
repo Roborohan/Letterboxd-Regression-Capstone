@@ -103,11 +103,12 @@ a selector when there is more than one.
 ## Data and privacy
 
 - **Committed:** the app's tables in `data/processed/<username>/` — titles, ratings,
-  predictions and summary figures. No review text.
-- **Not committed:** the export itself, the working files in `data/interim/`, and the TMDB
-  API caches.
-- Review excerpts appear in the app only when the interim data is present locally, and they
-  are explanation only: **no review text is ever a model input.**
+  predictions, summary figures, and the review excerpts the app can quote (only for films that
+  can appear as a neighbour of a prediction).
+- **Not committed:** the export itself, the working files in `data/interim/` (including the
+  full review history), and the TMDB API caches.
+- Reviews are shown to explain a prediction and are **never a model input**. To keep them off a
+  deployed copy, delete `data/processed/<username>/reviews.csv` — the app simply omits them.
 - Deploying publicly makes any committed user's ratings and watchlist public. Get their
   agreement first.
 
