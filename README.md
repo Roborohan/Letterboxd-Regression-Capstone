@@ -69,7 +69,7 @@ code lives in `src/`, and `run_pipeline.py` repeats the same steps for any expor
 
 ```bash
 conda create -n py313 python=3.13 && conda activate py313
-pip install -r requirements.txt
+pip install -r requirements-dev.txt     # to run the app only: pip install -r requirements.txt
 ```
 
 Create `.env` in the project root:
@@ -95,8 +95,12 @@ test set is too small for the comparison to say anything either way. It differs 
 notebooks in one respect it prints: TMDB matches that need a human eye are dropped rather
 than reviewed by hand, which on this export costs 8 films and about 0.003 ★ of the headline.
 
-Several people's exports can sit side by side — each gets its own folder, and the app shows
-a selector when there is more than one.
+Several people's exports can sit side by side — each gets its own folder, and the app shows a
+selector when there is more than one. Set `DEFAULT_USER=<username>` in `.env` to choose who it
+opens on.
+
+The notebooks always work on whichever export ran last, so `02`–`05` stop with a clear message
+if that isn't the user they were written for.
 
 ---
 

@@ -1,6 +1,4 @@
-# Python 3.13
-
-# pipeline and app
+# Python 3.13 — what the app needs
 pandas==3.0.5
 numpy==2.5.0
 scikit-learn==1.9.0
@@ -8,7 +6,3 @@ scipy==1.18.0
 requests==2.34.2
 python-dotenv==1.2.2
 streamlit==1.64.0
-
-# notebooks only (not needed to run the app)
-matplotlib==3.11.1
-ipykernel==7.3.0

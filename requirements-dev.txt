@@ -1,0 +1,4 @@
+# the notebooks, on top of requirements.txt
+-r requirements.txt
+matplotlib==3.11.1
+ipykernel==7.3.0
