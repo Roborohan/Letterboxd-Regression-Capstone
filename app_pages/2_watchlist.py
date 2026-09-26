@@ -21,6 +21,13 @@ MODES              = [FAVOURITES, MISSES, ABOVE, BELOW]
 ALL, KNOWN, VERY = "All films", "Well known", "Very well known"
 LEVELS           = [ALL, KNOWN, VERY]
 
+# Length, in 15-minute steps; the two ends mean "no limit" (the watchlist has no films under 45m)
+LENGTH_STEPS = [45] + list(range(60, 181, 15)) + [999]
+
+
+def length_label(m):
+    return "45m" if m == 45 else "3h+" if m == 999 else f"{m // 60}h" + (f" {m % 60}m" if m % 60 else "")
+
 SCROLL_TOP_JS = """
 <script>
 const doc = window.parent.document;
@@ -41,9 +48,56 @@ whose   = possessive(name)
 if "wl_page" not in st.session_state:
     st.session_state.wl_page = 0
 
+GENRES  = sorted({g for gs in wl["genres"].dropna() for g in gs.split("|") if g})
+DECADES = [f"{d}s" for d in range(int(wl["film_year"].min()) // 10 * 10,
+                                  int(wl["film_year"].max()) // 10 * 10 + 1, 10)]
+FILTER_DEFAULTS = {"known": ALL, "genres": [], "decades": (DECADES[0], DECADES[-1]),
+                   "length": (LENGTH_STEPS[0], LENGTH_STEPS[-1])}
+
+# The filter widgets are keyed by a version number: Reset (or a change of viewer, whose watchlist
+# has different genres and decades) bumps it, so every filter is recreated at its default.
+if st.session_state.get("wl_filters_for") != st.session_state["user"]:
+    st.session_state.wl_filters_for = st.session_state["user"]
+    st.session_state.wl_fv = st.session_state.get("wl_fv", 0) + 1
+
+
+def fkey(name):
+    return f"wl_{name}_{st.session_state.wl_fv}"
+
+
+def fval(name):
+    """A filter's current value, or its default before its widget has been drawn."""
+    return st.session_state.get(fkey(name), FILTER_DEFAULTS[name])
+
 
 def reset_paging():
     st.session_state.wl_page = 0
+
+
+def reset_filters():
+    st.session_state.wl_fv += 1
+    reset_paging()
+
+
+def active_filters():
+    """Plain-English descriptions of the filters currently set, for the button count and the note."""
+    out = []
+    if fval("known") != ALL:
+        out.append(fval("known").lower())
+    if fval("genres"):
+        out.append(" or ".join(fval("genres")))
+    lo, hi = fval("decades")
+    if (lo, hi) != FILTER_DEFAULTS["decades"]:
+        out.append(lo if lo == hi else f"{lo}–{hi}")
+    lo, hi = fval("length")
+    if (lo, hi) != FILTER_DEFAULTS["length"]:
+        if lo == LENGTH_STEPS[0]:
+            out.append(f"under {length_label(hi)}")
+        elif hi == LENGTH_STEPS[-1]:
+            out.append(f"over {length_label(lo)}")
+        else:
+            out.append(f"{length_label(lo)}–{length_label(hi)}")
+    return out
 
 
 def go_to(page):
@@ -75,17 +129,28 @@ query = st.text_input("Search the watchlist", key="wl_search", placeholder="Sear
                       icon=":material/search:", label_visibility="collapsed", on_change=reset_paging,
                       width=420).strip()
 
-left, right = st.columns([7, 3], vertical_alignment="center")
-with left:
+with st.container(key="wl_controls", horizontal=True, vertical_alignment="center", gap="small"):
     mode = st.segmented_control("Sort", MODES, default=FAVOURITES, key="wl_mode",
                                 label_visibility="collapsed", on_change=reset_paging) or FAVOURITES
-with right:
-    level = st.select_slider(
-        "How well known?", LEVELS, value=ALL, key="wl_known", on_change=reset_paging,
-        help=f"Well known: at least {summary['rated_median_votes']:,.0f} TMDB votes, as well "
-             f"known as a typical film {name} has rated. Very well known: at least "
-             f"{summary['rated_votes_p75']:,.0f}, better known than three-quarters of them.",
-    )
+    applied = active_filters()
+    with st.popover(f"Filters · {len(applied)}" if applied else "Filters", icon=":material/tune:"):
+        st.select_slider(
+            "How well known?", LEVELS, value=FILTER_DEFAULTS["known"], key=fkey("known"),
+            on_change=reset_paging,
+            help=f"Well known: at least {summary['rated_median_votes']:,.0f} TMDB votes, as well "
+                 f"known as a typical film {name} has rated. Very well known: at least "
+                 f"{summary['rated_votes_p75']:,.0f}, better known than three-quarters of them.",
+        )
+        st.multiselect("Genres", GENRES, default=[], key=fkey("genres"), on_change=reset_paging,
+                       placeholder="Any genre", help="Films with any of the chosen genres.")
+        st.select_slider("Decades", DECADES, value=FILTER_DEFAULTS["decades"], key=fkey("decades"),
+                         on_change=reset_paging)
+        st.select_slider("Length", LENGTH_STEPS, value=FILTER_DEFAULTS["length"], key=fkey("length"),
+                         format_func=length_label, on_change=reset_paging)
+        if applied:
+            st.button("Reset filters", on_click=reset_filters, type="tertiary",
+                      icon=":material/restart_alt:")
+level = fval("known")
 
 crowd_range = (f"the crowd score is between {summary['crowd_lo']:.1f} and {summary['crowd_hi']:.1f}/10, "
                f"the range where the model and the crowd can be fairly compared")
@@ -101,6 +166,9 @@ explain = {
 if query:
     explain = (f"Films on {whose} watchlist matching “{html.escape(query)}”, highest prediction first. "
                f"A search covers the whole watchlist, so the list and filter above don't apply.")
+if applied and not query:
+    explain += (f" <span style='color:var(--white)'>Filtered to "
+                f"{html.escape(' · '.join(applied))}.</span>")
 st.markdown(f"<p class='card-meta'>{explain}</p>", unsafe_allow_html=True)
 st.markdown("<p class='card-meta'><span style='color:var(--orange)'>⚑</span> marks a film unlike "
             f"anything in {whose} rated history on one of the model's inputs, so its prediction is "
@@ -119,6 +187,16 @@ else:
     if level != ALL:
         cut = summary["rated_median_votes"] if level == KNOWN else summary["rated_votes_p75"]
         films = films[films["vote_count"] >= cut]
+    if fval("genres"):
+        wanted = set(fval("genres"))
+        films = films[films["genres"].fillna("").str.split("|").map(lambda gs: bool(wanted & set(gs)))]
+    lo, hi = (int(d[:-1]) for d in fval("decades"))
+    films = films[films["film_year"].between(lo, hi + 9)]
+    lo, hi = fval("length")
+    if lo > LENGTH_STEPS[0]:
+        films = films[films["runtime"] >= lo]
+    if hi < LENGTH_STEPS[-1]:
+        films = films[films["runtime"] <= hi]
 
     if mode == FAVOURITES:
         films = films[films["pred"] >= mean].sort_values(["pred", "vote_count"], ascending=[False, False])
@@ -309,7 +387,12 @@ def pager(where):
 
 
 if films.empty:
-    st.info(f"No watchlist films match “{query}”." if query else "No films match these settings.")
+    if query:
+        st.info(f"No watchlist films match “{query}”.")
+    else:
+        st.info("No films match these settings. Try widening the filters.")
+        if applied:
+            st.button("Reset filters", on_click=reset_filters, key="reset_empty")
 else:
     st.markdown(f"<p class='card-meta'>Films {start + 1}–{start + len(page_films)} of {len(films):,}</p>",
                 unsafe_allow_html=True)
