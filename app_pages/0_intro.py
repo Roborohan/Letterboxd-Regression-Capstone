@@ -40,7 +40,7 @@ LAYER_COLOUR = {        # slate: baseline · blue: the crowd · orange, green, w
 st.markdown(
     f"<div class='hero-kicker'>{name} · {n_rated:,} films rated</div>"
     f"<div class='hero-title'>Beyond the<br>Crowd Score</div>"
-    f"<p class='lead'>Can a model learn what one person likes — beyond what everyone else likes? "
+    f"<p class='lead'>Can a model learn what one person likes, beyond what everyone else likes? "
     f"Built from {whose} Letterboxd history, every film enriched with data from TMDB.</p>",
     unsafe_allow_html=True,
 )

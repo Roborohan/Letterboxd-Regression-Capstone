@@ -132,10 +132,10 @@ st.markdown(
     f"{int(summary['n_test'])} most recent, held back while the model was built. It predicted every "
     f"one of them blind, so the predictions can be checked against what {name} actually gave them. "
     f"They were off by <b>{summary['mae_deploy']:.2f}&nbsp;★</b> on average, against "
-    f"<b>{summary['mae_m1']:.2f}&nbsp;★</b> for the crowd score — and the model ranked {whose} films "
+    f"<b>{summary['mae_m1']:.2f}&nbsp;★</b> for the crowd score, and the model ranked {whose} films "
     f"{ranking_phrase(summary)}.</p>"
-    f"<p class='card-meta'>Below: the {SHOWCASE_N} best-known of those films, by number of TMDB votes — "
-    f"picked for recognisability, not for how well they were predicted. Open one to watch its prediction "
+    f"<p class='card-meta'>Below: the {SHOWCASE_N} best-known of those films, by number of TMDB votes. "
+    f"Picked for recognisability, not for how well they were predicted. Open one to watch its prediction "
     f"being built.</p>",
     unsafe_allow_html=True,
 )

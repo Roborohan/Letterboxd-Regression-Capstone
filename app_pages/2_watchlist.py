@@ -93,7 +93,7 @@ explain = {
 st.markdown(f"<p class='card-meta'>{explain}</p>", unsafe_allow_html=True)
 st.markdown("<p class='card-meta'><span style='color:var(--orange)'>⚑</span> marks a film unlike "
             f"anything in {whose} rated history on one of the model's inputs, so its prediction is "
-            "less reliable — open a film for details.</p>", unsafe_allow_html=True)
+            "less reliable. Open a film for details.</p>", unsafe_allow_html=True)
 
 
 # ---------- Filter, sort and page ----------
