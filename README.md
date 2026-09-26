@@ -2,14 +2,17 @@
 
 **Can a model learn what one person likes, beyond what everyone else likes?**
 
-**[Try it →](https://beyond-the-crowd-score.streamlit.app/)**
+**[Try it →](https://beyond-the-crowd-score.streamlit.app/)** *(hosted on Streamlit Community
+Cloud — if it's been idle, it takes about 30 seconds to wake)*
 
 Film ratings sites answer "is this good?" with a crowd average. This project asks a
 narrower question: given one viewer's rating history, can a model predict *their* rating
 better than the crowd score can — and can it say why?
 
 Built from a Letterboxd export (1,192 rated viewings, Dec 2021 – Aug 2026), enriched with
-TMDB metadata, and presented as a Streamlit app.
+TMDB metadata, and presented as a Streamlit app. A Data & AI capstone project.
+
+**Built with** Python · pandas · scikit-learn (Random Forest, Ridge) · Streamlit · the TMDB API
 
 ---
 
@@ -35,6 +38,21 @@ Two honest caveats the app states plainly:
   uncertain improvement at this sample size, and review text produced no usable feature
   at all. Both null results are reported rather than buried.
 
+### Does it work for anyone else?
+
+Two friends exported their data, and the same pipeline ran on both with no code changes and
+nothing tuned by hand. The answers differed:
+
+| | Films | Gain over the crowd score | Ranks films better than the crowd? |
+|---|---|---|---|
+| Me | 1,192 | **+0.111 ★** [+0.059, +0.166] | Yes — 0.612 vs 0.340 |
+| Friend 1 | 897 | +0.006 ★ [−0.015, +0.027] | Yes — 0.313 vs 0.238 |
+| Friend 2 | 426 | +0.052 ★ [−0.008, +0.108] | Yes — 0.603 vs 0.580 |
+
+One viewer agrees with the crowd more than I do, leaving less room to beat it; the other's gain
+is a useful size, but 86 test films can't resolve it. Three people, three different answers —
+which is the point: the pipeline travels, the finding is one person's.
+
 ---
 
 ## The app
@@ -49,6 +67,9 @@ Four pages, all reading precomputed tables — no model runs in the app.
    likely misses, or the biggest gap above or below the crowd-based estimate. Open a film
    for the rated films the prediction drew on.
 4. **Coming soon** — unreleased films, predicted by a variant that never sees a crowd score.
+
+A selector switches between viewers, and a settings menu can turn off the blur on explicit
+posters, show predictions unrounded, or reduce motion. It works on phones as well as desktop.
 
 ---
 
@@ -122,8 +143,8 @@ if that isn't the user they were written for.
 
 ## Limitations
 
-One viewer, 1,192 viewings. Everything here is a case study, not a claim about viewers in
-general. The watchlist is a pool the viewer already chose, so predictions are "how much will
+One viewer, 1,192 viewings — three, counting the portability check. Everything here is a case
+study, not a claim about viewers in general. The watchlist is a pool the viewer already chose, so predictions are "how much will
 you like this film you picked", not "will you like a random film". Low ratings are rare,
 extremes are hardest to predict, and TMDB's crowd fields are read as they are today rather
 than as they were when each film was watched.
