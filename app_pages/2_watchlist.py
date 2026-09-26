@@ -212,7 +212,7 @@ def why_dialog(film):
             top3, top5 = rows.head(3)["share"].sum(), rows["share"].sum()
             st.subheader("Films the model drew from", anchor=False)
             st.markdown(
-                "<div style='display:grid; grid-template-columns:repeat(3, 1fr); gap:1.25rem'>"
+                "<div class='neighbours'>"
                 + "".join(neighbour_card(n) for n in rows.head(3).itertuples()) + "</div>"
                 + f"<p class='card-meta' style='margin-top:0.75rem'>The prediction is almost exactly a weighted "
                   f"average of {whose} ratings. These three carry the most weight — {top3:.0%} between them, "

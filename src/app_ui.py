@@ -119,6 +119,17 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     margin-top: 0.15rem;
 }
 
+/* The rated films behind a prediction, inside the Why? modal */
+.neighbours {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+}
+
+.neighbours .card-title {
+    overflow-wrap: anywhere;
+}
+
 /* Model ladder (inside the film dialog) */
 .ladder-top {
     display: flex;
@@ -452,7 +463,25 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     .block-container, [data-testid="stMainBlockContainer"] {
         padding-left: 0.9rem !important;
         padding-right: 0.9rem !important;
-        padding-top: 1.5rem !important;
+        padding-top: 4.25rem !important;
+    }
+
+    .neighbours { grid-template-columns: 1fr; gap: 0.9rem; }
+
+    /* top bar: "Whose films?" and the settings gear on one row, the selector taking the space */
+    .st-key-top_bar [data-testid="stHorizontalBlock"] {
+        flex-wrap: nowrap !important;
+        gap: 0.5rem !important;
+    }
+    .st-key-top_bar [data-testid="stColumn"]:first-child {
+        flex: 1 1 auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+    }
+    .st-key-top_bar [data-testid="stColumn"]:last-child {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: 0 !important;
     }
 
     /* poster grids: three across, not one giant poster per row */
