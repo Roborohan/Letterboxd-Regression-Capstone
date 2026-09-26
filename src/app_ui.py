@@ -38,7 +38,7 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
 }
 
 .block-container, [data-testid="stMainBlockContainer"] {
-    padding-top: 2.5rem;
+    padding-top: 4rem;
     padding-bottom: 2rem;
     max-width: 1400px;
 }
@@ -118,6 +118,63 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     font-size: 1rem;
     line-height: 1.45;
     margin-top: 0.15rem;
+}
+
+/* Top bar: "Viewing" + the name pills + the settings menu, top right */
+.viewer-label {
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* Top bar: the gear matches the pills' height */
+.st-key-top_bar [data-testid="stPopover"] button {
+    height: 2.2rem;
+    min-height: 2.2rem;
+    padding: 0 0.75rem;
+    margin: 0;
+}
+
+/* Settings menu: each row is the switch, then its text */
+[data-testid="stPopoverBody"] {
+    min-width: 23rem;
+}
+
+[class*="st-key-row_set_"] {
+    margin-bottom: 0.7rem;
+}
+
+[class*="st-key-row_set_"] [data-testid="stCheckbox"] {
+    margin-top: 0.1rem;         /* level the switch with the first line of its label */
+}
+
+.setting-label {
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.3;
+}
+
+.setting-note {
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
+/* "Open on your phone" QR in the footer — desktop only, hidden in the phone layout */
+.qr-desktop {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.qr-desktop img {
+    width: 64px;
+    height: 64px;
+    border-radius: 4px;
 }
 
 /* The rated films behind a prediction, inside the Why? modal */
@@ -469,21 +526,10 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
 
     .neighbours { grid-template-columns: 1fr; gap: 0.9rem; }
 
-    /* top bar: "Whose films?" and the settings gear on one row, the selector taking the space */
-    .st-key-top_bar [data-testid="stHorizontalBlock"] {
-        flex-wrap: nowrap !important;
-        gap: 0.5rem !important;
-    }
-    .st-key-top_bar [data-testid="stColumn"]:first-child {
-        flex: 1 1 auto !important;
-        width: auto !important;
-        min-width: 0 !important;
-    }
-    .st-key-top_bar [data-testid="stColumn"]:last-child {
-        flex: 0 0 auto !important;
-        width: auto !important;
-        min-width: 0 !important;
-    }
+    [data-testid="stPopoverBody"] { min-width: 0; max-width: 92vw; }
+    .viewer-label { display: none; }
+
+    .qr-desktop { display: none !important; }
 
     /* poster grids: three across, not one giant poster per row */
     [data-testid="stHorizontalBlock"]:has([class*="st-key-card_"]) {
@@ -617,7 +663,7 @@ REVIEW_WHITELIST = [
     "god", "omg", "murder", "kill", "rape", "raped", "stroke", "drunk", "naked", "sex", "sexual",
     "erotic", "porn", "porno", "lust", "horny", "horniest", "sleazy", "sleaze", "vagina", "penis",
     "voyeur", "perversion", "sadist", "hooker", "nazi", "opiate", "pot",
-    "dong", "guido", "sissy", "dick"
+    "dong", "guido", "sissy", "dick",
     "gay", "queer",
     "hell", "damn", "crap", "ugly", "stupid", "jerk", "suck", "sucked", "weirdo", "willies",
     "lmao", "lmfao", "wtf",
@@ -631,15 +677,8 @@ def _profanity_filter():
     return profanity
 
 
-def censor_on():
-    """Whether strong language in review excerpts is masked — on unless the viewer turns it off."""
-    return st.session_state.get("set_censor", True)
-
-
 def censor_review(text):
-    """Mask strong language in a review excerpt: each flagged word becomes '****'."""
-    if not censor_on():
-        return text
+    """Mask strong language in a review excerpt: each flagged word becomes '****'. Always on."""
     return _profanity_filter().censor(text, "*")
 
 

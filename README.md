@@ -68,7 +68,9 @@ Four pages, all reading precomputed tables — no model runs in the app.
    for the rated films the prediction drew on.
 4. **Coming soon** — unreleased films, predicted by a variant that never sees a crowd score.
 
-A selector switches between viewers, and a settings menu can turn off the blur on explicit posters or the masking of strong language in review excerpts, show predictions unrounded, or reduce motion. It works on phones as well as desktop.
+A selector switches between viewers, and a settings menu can turn off the blur on explicit
+posters, show predictions unrounded, or reduce motion. Strong language in quoted review excerpts
+is always masked. It works on phones as well as desktop.
 
 ---
 
@@ -152,6 +154,10 @@ than as they were when each film was watched.
 
 ## Credits
 
-Built from a personal Letterboxd export. Film data and posters from
-[TMDB](https://www.themoviedb.org/). This product uses the TMDB API but is not endorsed or
-certified by TMDB.
+Ratings, reviews and watchlists come from personal [Letterboxd](https://letterboxd.com/) data
+exports, used with each person's permission. This is an independent project, not affiliated with,
+endorsed by or sponsored by Letterboxd; "Letterboxd" and its logo are trademarks of Letterboxd
+Limited.
+
+Film data and posters from [TMDB](https://www.themoviedb.org/). This product uses the TMDB API but
+is not endorsed or certified by TMDB.
