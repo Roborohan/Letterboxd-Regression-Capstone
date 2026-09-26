@@ -445,6 +445,80 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
 .st-key-wl_known [data-testid="stWidgetLabel"] p {
     font-size: 1.05rem;
 }
+
+/* ---------- Phones (desktop unaffected: nothing here applies above 640px) ---------- */
+@media (max-width: 640px) {
+
+    .block-container, [data-testid="stMainBlockContainer"] {
+        padding-left: 0.9rem !important;
+        padding-right: 0.9rem !important;
+        padding-top: 1.5rem !important;
+    }
+
+    /* poster grids: three across, not one giant poster per row */
+    [data-testid="stHorizontalBlock"]:has([class*="st-key-card_"]) {
+        flex-wrap: wrap !important;
+        gap: 1rem 0.6rem !important;
+    }
+    [data-testid="stHorizontalBlock"]:has([class*="st-key-card_"]) > [data-testid="stColumn"] {
+        flex: 0 0 calc((100% - 1.2rem) / 3) !important;
+        width: calc((100% - 1.2rem) / 3) !important;
+        min-width: 0 !important;
+    }
+    .card-title                 { font-size: 0.85rem; }
+    .card-meta                  { font-size: 0.8rem; }
+    .card-stats                 { column-gap: 0.5rem; }
+    .card-stats .label          { font-size: 0.58rem; letter-spacing: 0.02em; }
+    .card-stats .value          { font-size: 0.85rem; }
+    .poster-label-title         { font-size: 0.8rem; }
+
+    /* pager: previous · page · of N · next on one line */
+    [class*="st-key-pager_"] [data-testid="stHorizontalBlock"] {
+        flex-wrap: nowrap !important;
+        gap: 0.4rem !important;
+    }
+    [class*="st-key-pager_"] [data-testid="stColumn"] {
+        flex: 1 1 auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+    }
+    [class*="st-key-pager_"] [data-testid="stColumn"]:nth-child(1),
+    [class*="st-key-pager_"] [data-testid="stColumn"]:nth-child(3),
+    [class*="st-key-pager_"] [data-testid="stColumn"]:nth-child(7),
+    [class*="st-key-pager_"] [data-testid="stColumn"]:nth-child(8) {
+        display: none !important;
+    }
+
+    /* intro */
+    .hero-title   { font-size: 2.6rem; }
+    .lead         { font-size: 1.05rem; }
+    .stats        { gap: 1.25rem 2rem; padding: 1rem 0; }
+    .stat-value   { font-size: 1.9rem; }
+    .stat-label   { font-size: 0.85rem; }
+    .layers       { grid-template-columns: 1fr; gap: 0.6rem; }
+
+    /* the ladder: label and value on one line, the track full width beneath */
+    .rung {
+        grid-template-columns: 1fr auto;
+        row-gap: 0.35rem;
+        column-gap: 0.75rem;
+    }
+    .rung > .track, .rung > .track-scale { grid-column: 1 / -1; grid-row: 2; }
+    .rung > .rung-value                  { grid-column: 2; grid-row: 1; }
+    .rung.scale > div:empty              { display: none; }
+    .rung-label  { font-size: 0.95rem; }
+    .rung-sub    { font-size: 0.8rem; }
+    .rung-value  { font-size: 1rem; }
+
+    /* modals */
+    .ladder-top    { gap: 0.9rem; }
+    .ladder-poster { width: 64px; }
+
+    /* mode switches wrap rather than overflow */
+    .st-key-wl_mode button, .st-key-cs_mode button { min-height: 2.2rem; padding: 0.3rem 0.65rem; }
+    .st-key-wl_mode button p, .st-key-cs_mode button p { font-size: 0.9rem; }
+}
+
 """
 
 
@@ -483,6 +557,26 @@ def poster_url(path):
     """Full TMDB poster URL, or None when the film has no poster."""
     return None if pd.isna(path) or not path else POSTER_BASE + path
 
+# ---------- Viewer settings (set from the ⚙ menu in app.py) ----------
+
+def blur_on():
+    """Whether posters TMDB marks explicit are blurred — on unless the viewer turns it off."""
+    return st.session_state.get("set_blur", True)
+
+
+def pred_text(x):
+    """A prediction on a card: half-stars by default, two decimals if the viewer asked for them."""
+    return stars_exact(x) if st.session_state.get("set_exact", False) else stars(x)
+
+
+def thumb_html(url, sensitive):
+    """The small poster at the top of a modal, blurred if the film is flagged and blurring is on."""
+    if not url:
+        return ""
+    if sensitive and blur_on():
+        return (f"<div class='poster-frame poster-hidden' style='width:84px; flex:none; margin:0'>"
+                f"<img src='{url}' alt=''></div>")
+    return f"<img class='ladder-poster' src='{url}'>"
 
 # ---------- Poster cards ----------
 
@@ -502,7 +596,7 @@ def poster_card(film, key, caption_html, on_open, id_col="film_key"):
     with no poster shows its title on a plain frame.
     """
     url    = poster_url(film.poster_path)
-    hidden = bool(getattr(film, "sensitive_poster", False))    # only tables from 05 carry the flag
+    hidden = blur_on() and bool(getattr(film, "sensitive_poster", False))
     title  = html.escape(film.film_title)
 
     if url and not hidden:

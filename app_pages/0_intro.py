@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 
 from src.app_data import RUNGS, current_tables, display_name, possessive
-from src.app_ui import stars
+from src.app_ui import stars, blur_on, pred_text, thumb_html
 
 tables  = current_tables()
 summary = tables["model_summary"]

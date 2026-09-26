@@ -4,7 +4,8 @@ import pandas as pd
 import streamlit as st
 
 from src.app_data import current_tables, display_name, possessive
-from src.app_ui import card_stats, flag_html, gap, poster_grid, poster_url, runtime_text, stars, stars_exact
+from src.app_ui import (card_stats, flag_html, gap, poster_grid, poster_url, pred_text, runtime_text,
+                        stars, stars_exact, thumb_html)
 
 REGION_NAMES = {"GB": "the UK", "US": "the US", "IE": "Ireland", "CA": "Canada",
                 "AU": "Australia", "NZ": "New Zealand", "IN": "India", "DE": "Germany",
@@ -44,7 +45,7 @@ def coming_caption(film, rank, of):
     length = runtime_text(film.runtime)
     return (f"<div class='card-meta'>{release_text(film.release_shown)}"
             + (f" · {length}" if length else "") + "</div>"
-            + card_stats([("Predicted", stars(film.pred)), ("Vs recent", gap(film.pred - recent))])
+            + card_stats([("Predicted", pred_text(film.pred)), ("Vs recent", gap(film.pred - recent))])
             + f"<div class='card-meta'>#{rank} of {of}</div>"
             + flag_html(film.out_of_range))
 
@@ -53,13 +54,7 @@ def coming_dialog(film):
     @st.dialog(film["film_title"], width="large", on_dismiss="rerun")
     def show():
         url = poster_url(film["poster_path"])
-        if url and not film["sensitive_poster"]:
-            thumb = f"<img class='ladder-poster' src='{url}'>"
-        elif url:
-            thumb = (f"<div class='poster-frame poster-hidden' style='width:84px; flex:none; margin:0'>"
-                     f"<img src='{url}' alt=''></div>")
-        else:
-            thumb = ""
+        thumb = thumb_html(url, bool(film["sensitive_poster"]))
         facts = " · ".join(str(x) for x in [release_text(film["release_shown"]),
                                             runtime_text(film["runtime"]), film["director"]]
                            if pd.notna(x) and x)

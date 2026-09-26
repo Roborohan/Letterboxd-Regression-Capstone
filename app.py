@@ -38,10 +38,27 @@ default = os.getenv("DEFAULT_USER")
 if default in users:
     users = [default] + [u for u in users if u != default]
 
-if len(users) > 1:
-    st.selectbox("Whose films?", users, format_func=display_name, key="user")
-else:
-    st.session_state["user"] = users[0]
+with st.container(key="top_bar"):
+    left, right = st.columns([10, 1], vertical_alignment="bottom")
+    with left:
+        if len(users) > 1:
+            st.selectbox("Whose films?", users, format_func=display_name, key="user")
+        else:
+            st.session_state["user"] = users[0]
+    with right:
+        with st.popover(":material/settings:", help="Settings"):
+            st.markdown("**Settings**")
+            st.toggle("Blur explicit posters", value=True, key="set_blur",
+                      help="Posters whose TMDB keywords mark the film as explicit are blurred. "
+                           "The film keeps its prediction and its place either way.")
+            st.toggle("Show exact predictions", value=False, key="set_exact",
+                      help="Cards show predictions to two decimals instead of half-stars.")
+            st.toggle("Reduce motion", value=False, key="set_motion",
+                      help="Turns off hover effects and the ladder's animation.")
+
+if st.session_state.get("set_motion"):
+    st.markdown("<style>*, *::before, *::after { animation: none !important; "
+                "transition: none !important; }</style>", unsafe_allow_html=True)
 
 pages = [
     st.Page("app_pages/0_intro.py",             title="Intro", default=True),

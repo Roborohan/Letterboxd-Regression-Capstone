@@ -1,7 +1,7 @@
 import streamlit as st
 
 from src.app_data import RUNGS, current_tables, display_name, possessive
-from src.app_ui import card_stats, crowd, poster_grid, poster_url, stars, stars_exact
+from src.app_ui import card_stats, crowd, poster_grid, poster_url, stars, stars_exact, blur_on, pred_text, thumb_html
 
 SHOWCASE_N = 12                   # rule fixed in advance: the most-voted test films, by vote_count alone
 SCALE_LO, SCALE_HI = 0.5, 5.0
@@ -35,7 +35,7 @@ def open_film(film_key):
 
 def showcase_caption(film):
     return (f"<div class='card-meta'>{film.film_year}</div>"
-            + card_stats([("Predicted", stars(film.pred_deploy)), ("Rated", stars(film.rating))]))
+            + card_stats([("Predicted", pred_text(film.pred_deploy)), ("Rated", stars(film.rating))]))
 
 
 # ---------- Model ladder ----------
@@ -93,7 +93,7 @@ def film_dialog(film):
         step = st.session_state.ladder_step
 
         url = poster_url(film["poster_path"])
-        poster = f"<img class='ladder-poster' src='{url}'>" if url else ""
+        poster = thumb_html(url, bool(film.get("sensitive_poster", False)))
         body = (f"<div class='ladder-top'>{poster}<div class='ladder-head'>"
                 f"{film['film_year']}<br>"
                 f"Crowd score <b>{crowd(film['vote_average'])}</b> · "

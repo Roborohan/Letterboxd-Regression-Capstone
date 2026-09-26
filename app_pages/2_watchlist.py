@@ -6,8 +6,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from src.app_data import current_tables, display_name, load_reviews, possessive
-from src.app_ui import (card_stats, crowd, excerpt, flag_html, gap, poster_grid, poster_url,
-                        runtime_text, stars, stars_exact)
+from src.app_ui import (blur_on, card_stats, crowd, excerpt, flag_html, gap, poster_grid,
+                        poster_url, pred_text, runtime_text, stars, stars_exact, thumb_html)
 
 PAGE_SIZE = 18
 MIN_GAP   = 0.25        # a quarter-star: half the half-star step predictions are displayed in
@@ -164,7 +164,7 @@ def neighbour_card(n):
     """A rated film as a compact row: small poster, then title, year, rating and share beside it."""
     url   = poster_url(n.neighbour_poster)
     title = html.escape(n.neighbour_title)
-    if url and not n.neighbour_sensitive:
+    if url and not (n.neighbour_sensitive and blur_on()):
         frame = f"<div class='poster-frame' style='margin:0'><img src='{url}' alt='{title}'></div>"
     elif url:
         frame = f"<div class='poster-frame poster-hidden' style='margin:0'><img src='{url}' alt=''></div>"
@@ -182,13 +182,7 @@ def why_dialog(film):
     @st.dialog(film["film_title"], width="large", on_dismiss="rerun")
     def show():
         url = poster_url(film["poster_path"])
-        if url and not film["sensitive_poster"]:
-            thumb = f"<img class='ladder-poster' src='{url}'>"
-        elif url:
-            thumb = (f"<div class='poster-frame poster-hidden' style='width:84px; flex:none; margin:0'>"
-                     f"<img src='{url}' alt=''></div>")
-        else:
-            thumb = ""
+        thumb = thumb_html(url, bool(film["sensitive_poster"]))
         facts = " · ".join(str(x) for x in [film["film_year"], runtime_text(film["runtime"]), film["director"]]
                            if pd.notna(x) and x)
         genres = film["genres"].replace("|", ", ") if isinstance(film["genres"], str) else ""
@@ -258,37 +252,42 @@ def watchlist_caption(film):
     else:
         second = ("Crowd", crowd(film.vote_average))
     return (f"<div class='card-meta'>{meta}</div>"
-            + card_stats([("Predicted", stars(film.pred)), second])
+            + card_stats([("Predicted", pred_text(film.pred)), second])
             + flag_html(film.out_of_range))
 
 
 def pager(where):
-    """First / previous / typed page number / next / last; `where` keeps widget keys distinct."""
-    last = n_pages - 1
-    first_col, prev_col, label_col, input_col, of_col, next_col, last_col, _ = st.columns(
-        [1.1, 1.3, 0.5, 0.9, 0.8, 1.3, 1.1, 3], vertical_alignment="center")
+    """First / previous / typed page number / next / last; `where` keeps widget keys distinct.
 
-    with first_col:
-        st.button("⇤ First", key=f"first_{where}", disabled=page == 0,
-                  on_click=go_to, args=(0,), width="stretch")
-    with prev_col:
-        st.button("← Previous", key=f"prev_{where}", disabled=page == 0,
-                  on_click=go_to, args=(page - 1,), width="stretch")
-    with label_col:
-        st.markdown("<p class='card-meta' style='text-align:right; margin:0'>Page</p>",
-                    unsafe_allow_html=True)
-    with input_col:
-        st.session_state.wl_page_input = page + 1          # always shows the current page
-        st.number_input("Page", min_value=1, max_value=n_pages, step=1, key="wl_page_input",
-                        label_visibility="collapsed", on_change=page_typed)
-    with of_col:
-        st.markdown(f"<p class='card-meta' style='margin:0'>of {n_pages}</p>", unsafe_allow_html=True)
-    with next_col:
-        st.button("Next →", key=f"next_{where}", disabled=page >= last,
-                  on_click=go_to, args=(page + 1,), width="stretch")
-    with last_col:
-        st.button("Last ⇥", key=f"last_{where}", disabled=page >= last,
-                  on_click=go_to, args=(last,), width="stretch")
+    Wrapped in a keyed container so the phone layout can hide First, Last and the labels.
+    """
+    last = n_pages - 1
+    with st.container(key=f"pager_{where}"):
+        first_col, prev_col, label_col, input_col, of_col, next_col, last_col, _ = st.columns(
+            [1.1, 1.3, 0.5, 0.9, 0.8, 1.3, 1.1, 3], vertical_alignment="center")
+
+        with first_col:
+            st.button("⇤ First", key=f"first_{where}", disabled=page == 0,
+                      on_click=go_to, args=(0,), width="stretch")
+        with prev_col:
+            st.button("← Previous", key=f"prev_{where}", disabled=page == 0,
+                      on_click=go_to, args=(page - 1,), width="stretch")
+        with label_col:
+            st.markdown("<p class='card-meta' style='text-align:right; margin:0'>Page</p>",
+                        unsafe_allow_html=True)
+        with input_col:
+            st.session_state.wl_page_input = page + 1          # always shows the current page
+            st.number_input("Page", min_value=1, max_value=n_pages, step=1, key="wl_page_input",
+                            label_visibility="collapsed", on_change=page_typed)
+        with of_col:
+            st.markdown(f"<p class='card-meta' style='margin:0'>of {n_pages}</p>",
+                        unsafe_allow_html=True)
+        with next_col:
+            st.button("Next →", key=f"next_{where}", disabled=page >= last,
+                      on_click=go_to, args=(page + 1,), width="stretch")
+        with last_col:
+            st.button("Last ⇥", key=f"last_{where}", disabled=page >= last,
+                      on_click=go_to, args=(last,), width="stretch")
 
 
 if films.empty:

@@ -6,5 +6,10 @@ secondaryBackgroundColor = "#2c3440"
 textColor = "#ffffff"
 font = "sans-serif"
 
+[theme.sidebar]
+widgetBackgroundColor = "#2c3440"
+widgetBorderColor = "#445466"
+skeletonBackgroundColor = "#2c3440"
+
 [client]
 toolbarMode = "minimal"
