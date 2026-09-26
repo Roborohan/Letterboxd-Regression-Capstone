@@ -9,6 +9,7 @@ import html
 import numpy as np
 import pandas as pd
 import streamlit as st
+from better_profanity import profanity
 
 POSTER_BASE = "https://image.tmdb.org/t/p/w342"
 
@@ -606,6 +607,41 @@ def thumb_html(url, sensitive):
         return (f"<div class='poster-frame poster-hidden' style='width:84px; flex:none; margin:0'>"
                 f"<img src='{url}' alt=''></div>")
     return f"<img class='ladder-poster' src='{url}'>"
+
+
+# Words the library flags that are ordinary in film reviews: titles and plot (City of God,
+# Memories of Murder), names (Lee Chang-dong, Sissy Spacek), identity terms, and mild
+# conversational words. Built from the flagged words in the published reviews; everything
+# else the library lists stays masked.
+REVIEW_WHITELIST = [
+    "god", "omg", "murder", "kill", "rape", "raped", "stroke", "drunk", "naked", "sex", "sexual",
+    "erotic", "porn", "porno", "lust", "horny", "horniest", "sleazy", "sleaze", "vagina", "penis",
+    "voyeur", "perversion", "sadist", "hooker", "nazi", "opiate", "pot",
+    "dong", "guido", "sissy", "dick"
+    "gay", "queer",
+    "hell", "damn", "crap", "ugly", "stupid", "jerk", "suck", "sucked", "weirdo", "willies",
+    "lmao", "lmfao", "wtf",
+]
+
+
+@st.cache_resource
+def _profanity_filter():
+    """The library's own word list, minus words that are ordinary in film reviews. Loaded once."""
+    profanity.load_censor_words(whitelist_words=REVIEW_WHITELIST)
+    return profanity
+
+
+def censor_on():
+    """Whether strong language in review excerpts is masked — on unless the viewer turns it off."""
+    return st.session_state.get("set_censor", True)
+
+
+def censor_review(text):
+    """Mask strong language in a review excerpt: each flagged word becomes '****'."""
+    if not censor_on():
+        return text
+    return _profanity_filter().censor(text, "*")
+
 
 # ---------- Poster cards ----------
 

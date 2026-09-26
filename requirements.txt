@@ -6,3 +6,4 @@ scipy==1.18.0
 requests==2.34.2
 python-dotenv==1.2.2
 streamlit==1.64.0
+better-profanity==0.7.0

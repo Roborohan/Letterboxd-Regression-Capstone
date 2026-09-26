@@ -20,6 +20,32 @@ def data_uri(path):
     return "data:image/png;base64," + base64.b64encode(Path(path).read_bytes()).decode()
 
 
+@st.dialog("Data sources & attribution", width="large")
+def attribution():
+    st.markdown(
+        """
+**Film data and posters** come from [TMDB](https://www.themoviedb.org/). This product uses the
+TMDB API but is not endorsed or certified by TMDB. Posters remain the copyright of their
+respective owners and are loaded from TMDB's image service.
+
+**Ratings, reviews and watchlists** come from personal Letterboxd data exports, used with each
+person's permission. This app is an independent project and is not affiliated with, endorsed
+by or sponsored by Letterboxd.
+
+**What's published:** film titles, ratings, predictions, summary figures, and short excerpts from
+reviews where they help explain a prediction. Reviews are never an input to the model. Nothing
+is collected from visitors to this app.
+
+**Content settings:** posters for films TMDB marks as explicit are blurred, and strong language
+in review excerpts is masked. Both are on by default and can be changed in the ⚙ menu.
+
+**Predictions** are statistical estimates from one person's history, not recommendations.
+
+**Questions, or want your data removed?** Get in touch via
+[LinkedIn](https://www.linkedin.com/in/rohan-sharma2001/).
+        """
+    )
+
 st.set_page_config(page_title="Beyond the Crowd Score", page_icon=str(LOGO), layout="wide")
 st.logo(str(LOGO), size="large")
 inject_css()
@@ -51,6 +77,8 @@ with st.container(key="top_bar"):
             st.toggle("Blur explicit posters", value=True, key="set_blur",
                       help="Posters whose TMDB keywords mark the film as explicit are blurred. "
                            "The film keeps its prediction and its place either way.")
+            st.toggle("Mask strong language in reviews", value=True, key="set_censor",
+                      help="Swear words in quoted review excerpts are shown as ****.")
             st.toggle("Show exact predictions", value=False, key="set_exact",
                       help="Cards show predictions to two decimals instead of half-stars.")
             st.toggle("Reduce motion", value=False, key="set_motion",
@@ -82,3 +110,6 @@ st.markdown(
     "</div>",
     unsafe_allow_html=True,
 )
+
+if st.button("Data sources & attribution", type="tertiary", key="attribution_link"):
+    attribution()

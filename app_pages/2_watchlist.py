@@ -7,7 +7,7 @@ import streamlit.components.v1 as components
 
 from src.app_data import current_tables, display_name, load_reviews, possessive
 from src.app_ui import (blur_on, card_stats, crowd, excerpt, flag_html, gap, poster_grid,
-                        poster_url, pred_text, runtime_text, stars, stars_exact, thumb_html)
+                        poster_url, pred_text, runtime_text, stars, stars_exact, thumb_html, censor_review)
 
 PAGE_SIZE = 18
 MIN_GAP   = 0.25        # a quarter-star: half the half-star step predictions are displayed in
@@ -229,7 +229,7 @@ def why_dialog(film):
                         "".join(f"<div style='border-left:3px solid var(--slate); padding:0.2rem 0 0.2rem 0.9rem; "
                                 f"margin-bottom:0.8rem'><div class='card-title' style='margin-top:0'>"
                                 f"{html.escape(n.neighbour_title)}</div><div class='card-meta'><i>“"
-                                f"{html.escape(excerpt(r))}”</i></div></div>" for n, r in quoted)
+                                f"{html.escape(excerpt(censor_review(r)))}”</i></div></div>" for n, r in quoted)
                         + "<p class='card-meta'>Shown to explain the prediction, not part of it: review text is "
                           "never an input to the model.</p>",
                         unsafe_allow_html=True,
