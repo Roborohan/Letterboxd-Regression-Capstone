@@ -68,8 +68,7 @@ Four pages, all reading precomputed tables — no model runs in the app.
    for the rated films the prediction drew on.
 4. **Coming soon** — unreleased films, predicted by a variant that never sees a crowd score.
 
-A selector switches between viewers, and a settings menu can turn off the blur on explicit
-posters, show predictions unrounded, or reduce motion. It works on phones as well as desktop.
+A selector switches between viewers, and a settings menu can turn off the blur on explicit posters or the masking of strong language in review excerpts, show predictions unrounded, or reduce motion. It works on phones as well as desktop.
 
 ---
 
