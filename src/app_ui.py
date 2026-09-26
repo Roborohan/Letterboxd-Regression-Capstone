@@ -514,9 +514,10 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     font-size: 1.15rem;
 }
 
-.st-key-wl_known label p,
-.st-key-wl_known [data-testid="stWidgetLabel"] p {
-    font-size: 1.05rem;
+/* Watchlist: the list switch and the Filters button on one row, wrapping on narrow screens */
+.st-key-wl_controls {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
 }
 
 /* ---------- Phones (desktop unaffected: nothing here applies above 640px) ---------- */
