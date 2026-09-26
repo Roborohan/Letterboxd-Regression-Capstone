@@ -5,6 +5,7 @@ predictions as half-stars (3.5 ★), crowd as 6.1 / 10, gaps as +0.8 ★.
 """
 
 import html
+import unicodedata
 
 import numpy as np
 import pandas as pd
@@ -38,7 +39,7 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
 }
 
 .block-container, [data-testid="stMainBlockContainer"] {
-    padding-top: 4rem;
+    padding-top: 4rem;          /* clear of the fixed header, so the top bar isn't cut off */
     padding-bottom: 2rem;
     max-width: 1400px;
 }
@@ -95,10 +96,13 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     z-index: 2;
 }
 
+/* Every wrapper between the card and its button has to fill the card too: buttons are
+   only as wide as their label by default, which made just part of each poster clickable. */
 [class*="st-key-open_"] [data-testid="stButton"],
+[class*="st-key-open_"] [data-testid="stButton"] > div,
 [class*="st-key-open_"] button {
-    width: 100%;
-    height: 100%;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 [class*="st-key-open_"] button {
@@ -682,6 +686,74 @@ def censor_review(text):
     return _profanity_filter().censor(text, "*")
 
 
+# ---------- Page titles, links and shared links ----------
+
+SITE = "Beyond the Crowd Score"
+
+
+def page_title(name=None):
+    """This page's browser-tab title: 'Watchlist · Beyond the Crowd Score'."""
+    st.set_page_config(page_title=f"{name} · {SITE}" if name else SITE)
+
+
+def fold(text):
+    """Lower-case and strip accents, so a search for 'amelie' finds 'Amélie'."""
+    text = unicodedata.normalize("NFKD", str(text))
+    return "".join(c for c in text if not unicodedata.combining(c)).casefold()
+
+
+def letterboxd_url(film):
+    """The film's Letterboxd page: its own link when we have one, else Letterboxd's TMDB redirect."""
+    uri = film.get("film_uri")
+    if isinstance(uri, str) and uri.startswith("http"):
+        return uri
+    tmdb_id = film.get("tmdb_id")
+    return None if pd.isna(tmdb_id) else f"https://letterboxd.com/tmdb/{int(tmdb_id)}/"
+
+
+def share_url(tmdb_id):
+    """A link that opens this page, for this viewer, with this film's details already open."""
+    base = (st.context.url or "").split("?")[0]
+    return f"{base}?u={st.session_state.get('user', '')}&film={int(tmdb_id)}"
+
+
+def film_links(film):
+    """The foot of a film's modal: open it on Letterboxd, and a copyable link to this prediction."""
+    url = letterboxd_url(film)
+    if url:
+        st.link_button("Open on Letterboxd", url, icon=":material/open_in_new:",
+                       icon_position="right", type="tertiary")
+    if pd.notna(film.get("tmdb_id")):
+        st.markdown("<p class='card-meta' style='margin:0.4rem 0 0.2rem'>Link to this prediction</p>",
+                    unsafe_allow_html=True)
+        st.code(share_url(film["tmdb_id"]), language=None, wrap_lines=True)
+
+
+def new_dialog():
+    """Call whenever a film is opened. Streamlit identifies a dialog by where it sits on the page,
+    so without a fresh slot, a film opened just after closing another reuses the closed dialog and
+    stays shut."""
+    st.session_state["dialog_n"] = st.session_state.get("dialog_n", 0) + 1
+
+
+def dialog_slot():
+    """A container unique to the current opening, for the film's dialog to sit in."""
+    return st.container(key=f"dialog_{st.session_state.get('dialog_n', 0)}")
+
+
+def take_shared_film():
+    """The TMDB id from a shared link (?film=…), read once and then removed from the address,
+    so closing the modal doesn't reopen it."""
+    raw = st.query_params.get("film")
+    if raw is None:
+        return None
+    del st.query_params["film"]
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
 # ---------- Poster cards ----------
 
 def card_stats(pairs):
@@ -714,7 +786,8 @@ def poster_card(film, key, caption_html, on_open, id_col="film_key"):
 
     with st.container(key=key):
         st.markdown(frame + caption_html, unsafe_allow_html=True)
-        st.button(film.film_title, key=f"open_{key}", on_click=on_open, args=(getattr(film, id_col),))
+        st.button(film.film_title, key=f"open_{key}", on_click=on_open, args=(getattr(film, id_col),),
+                  width="stretch")
 
 
 def poster_grid(films, key_prefix, caption, on_open, id_col="film_key", per_row=6):

@@ -91,7 +91,9 @@ with st.container(key="top_bar", horizontal=True, horizontal_alignment="distribu
         if len(users) > 1:
             st.markdown("<span class='viewer-label'>Viewing</span>", unsafe_allow_html=True,
                         width="content")
-            st.segmented_control("Whose films?", users, default=users[0], required=True,
+            shared_user = st.query_params.get("u")          # a shared link can pick the viewer
+            st.segmented_control("Whose films?", users, required=True,
+                                 default=shared_user if shared_user in users else users[0],
                                  format_func=display_name, key="user", label_visibility="collapsed")
         else:
             st.session_state["user"] = users[0]
@@ -103,6 +105,9 @@ with st.container(key="top_bar", horizontal=True, horizontal_alignment="distribu
                 "Cards show two decimals instead of half-stars.")
         setting("Reduce motion", "set_motion", False,
                 "Turns off hover effects and the ladder's animation.")
+
+if len(users) > 1:                      # keep the address bar in step, so it can be shared as is
+    st.query_params["u"] = st.session_state["user"]
 
 if st.session_state.get("set_motion"):
     st.markdown("<style>*, *::before, *::after { animation: none !important; "

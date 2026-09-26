@@ -6,8 +6,11 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from src.app_data import current_tables, display_name, load_reviews, possessive
-from src.app_ui import (blur_on, card_stats, crowd, excerpt, flag_html, gap, poster_grid,
-                        poster_url, pred_text, runtime_text, stars, stars_exact, thumb_html, censor_review)
+from src.app_ui import (blur_on, card_stats, censor_review, crowd, dialog_slot, excerpt, film_links,
+                        flag_html, fold, gap, new_dialog, page_title, poster_grid, poster_url, pred_text, runtime_text,
+                        stars, stars_exact, take_shared_film, thumb_html)
+
+page_title("Watchlist")
 
 PAGE_SIZE = 18
 MIN_GAP   = 0.25        # a quarter-star: half the half-star step predictions are displayed in
@@ -55,6 +58,7 @@ def page_typed():
 
 def open_watchlist_film(uri):
     st.session_state.wl_open = uri
+    new_dialog()
 
 
 # ---------- Header and controls ----------
@@ -66,6 +70,10 @@ st.markdown(
     f"— so read each list as likely, not as a strict ranking.</p>",
     unsafe_allow_html=True,
 )
+
+query = st.text_input("Search the watchlist", key="wl_search", placeholder="Search the watchlist",
+                      icon=":material/search:", label_visibility="collapsed", on_change=reset_paging,
+                      width=420).strip()
 
 left, right = st.columns([7, 3], vertical_alignment="center")
 with left:
@@ -90,6 +98,9 @@ explain = {
     BELOW:      f"Films the model expects {name} to like at least a quarter-star less than its crowd-based "
                 f"estimate, and below {average}. Shown only where {crowd_range}.",
 }[mode]
+if query:
+    explain = (f"Films on {whose} watchlist matching “{html.escape(query)}”, highest prediction first. "
+               f"A search covers the whole watchlist, so the list and filter above don't apply.")
 st.markdown(f"<p class='card-meta'>{explain}</p>", unsafe_allow_html=True)
 st.markdown("<p class='card-meta'><span style='color:var(--orange)'>⚑</span> marks a film unlike "
             f"anything in {whose} rated history on one of the model's inputs, so its prediction is "
@@ -99,21 +110,26 @@ st.markdown("<p class='card-meta'><span style='color:var(--orange)'>⚑</span> m
 # ---------- Filter, sort and page ----------
 
 films = wl
-if level != ALL:
-    cut = summary["rated_median_votes"] if level == KNOWN else summary["rated_votes_p75"]
-    films = films[films["vote_count"] >= cut]
+mean  = summary["rated_mean"]
 
-mean = summary["rated_mean"]
-if mode == FAVOURITES:
-    films = films[films["pred"] >= mean].sort_values(["pred", "vote_count"], ascending=[False, False])
-elif mode == MISSES:
-    films = films[films["pred"] < mean].sort_values(["pred", "vote_count"], ascending=[True, False])
-elif mode == ABOVE:
-    films = (films[(films["gap"] >= MIN_GAP) & (films["pred"] >= mean)]
-             .sort_values(["gap", "vote_count"], ascending=[False, False]))
+if query:                                   # a search covers the whole watchlist
+    films = (films[films["film_title"].map(fold).str.contains(fold(query), regex=False)]
+             .sort_values(["pred", "vote_count"], ascending=[False, False]))
 else:
-    films = (films[(films["gap"] <= -MIN_GAP) & (films["pred"] < mean)]
-             .sort_values(["gap", "vote_count"], ascending=[True, False]))
+    if level != ALL:
+        cut = summary["rated_median_votes"] if level == KNOWN else summary["rated_votes_p75"]
+        films = films[films["vote_count"] >= cut]
+
+    if mode == FAVOURITES:
+        films = films[films["pred"] >= mean].sort_values(["pred", "vote_count"], ascending=[False, False])
+    elif mode == MISSES:
+        films = films[films["pred"] < mean].sort_values(["pred", "vote_count"], ascending=[True, False])
+    elif mode == ABOVE:
+        films = (films[(films["gap"] >= MIN_GAP) & (films["pred"] >= mean)]
+                 .sort_values(["gap", "vote_count"], ascending=[False, False]))
+    else:
+        films = (films[(films["gap"] <= -MIN_GAP) & (films["pred"] < mean)]
+                 .sort_values(["gap", "vote_count"], ascending=[True, False]))
 
 n_pages    = max(1, math.ceil(len(films) / PAGE_SIZE))
 page       = min(st.session_state.wl_page, n_pages - 1)
@@ -240,6 +256,8 @@ def why_dialog(film):
             st.subheader("Why this prediction is less reliable", anchor=False)
             st.markdown("".join(f"<p class='card-meta'>⚑ {n}</p>" for n in notes), unsafe_allow_html=True)
 
+        film_links(film)
+
     show()
 
 
@@ -247,7 +265,7 @@ def why_dialog(film):
 
 def watchlist_caption(film):
     meta = " · ".join(x for x in [str(film.film_year), runtime_text(film.runtime)] if x and x != "<NA>")
-    if mode in (ABOVE, BELOW):
+    if mode in (ABOVE, BELOW) and not query:
         second = ("Vs crowd est.", gap(film.gap))
     else:
         second = ("Crowd", crowd(film.vote_average))
@@ -291,7 +309,7 @@ def pager(where):
 
 
 if films.empty:
-    st.info("No films match these settings.")
+    st.info(f"No watchlist films match “{query}”." if query else "No films match these settings.")
 else:
     st.markdown(f"<p class='card-meta'>Films {start + 1}–{start + len(page_films)} of {len(films):,}</p>",
                 unsafe_allow_html=True)
@@ -302,8 +320,16 @@ if st.session_state.pop("wl_scroll_to_top", False):
     st.session_state.wl_scroll_n = st.session_state.get("wl_scroll_n", 0) + 1
     components.html(SCROLL_TOP_JS + f"<!-- {st.session_state.wl_scroll_n} -->", height=0)
 
+shared = take_shared_film()
+if shared is not None:
+    match = wl.loc[wl["tmdb_id"] == shared]
+    if not match.empty:
+        st.session_state.wl_open = match.iloc[0]["film_uri"]
+        new_dialog()
+
 opened = st.session_state.pop("wl_open", None)
 if opened is not None:
     match = wl.loc[wl["film_uri"] == opened]
     if not match.empty:
-        why_dialog(match.iloc[0])
+        with dialog_slot():
+            why_dialog(match.iloc[0])

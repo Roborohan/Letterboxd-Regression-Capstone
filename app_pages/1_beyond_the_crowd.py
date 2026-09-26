@@ -1,7 +1,10 @@
 import streamlit as st
 
 from src.app_data import RUNGS, current_tables, display_name, possessive
-from src.app_ui import card_stats, crowd, poster_grid, poster_url, stars, stars_exact, blur_on, pred_text, thumb_html
+from src.app_ui import (card_stats, crowd, dialog_slot, film_links, new_dialog, page_title, poster_grid, poster_url, pred_text,
+                        stars, stars_exact, take_shared_film, thumb_html)
+
+page_title("Beyond the crowd")
 
 SHOWCASE_N = 12                   # rule fixed in advance: the most-voted test films, by vote_count alone
 SCALE_LO, SCALE_HI = 0.5, 5.0
@@ -31,6 +34,7 @@ def ranking_phrase(s):
 def open_film(film_key):
     st.session_state.open_film = film_key
     st.session_state.ladder_step = 1          # every film starts from "knows nothing"
+    new_dialog()
 
 
 def showcase_caption(film):
@@ -118,6 +122,8 @@ def film_dialog(film):
         else:
             st.button("Start again", on_click=restart_ladder)
 
+        film_links(film)
+
     show()
 
 
@@ -142,6 +148,13 @@ st.markdown(
 
 poster_grid(showcase, "showcase", showcase_caption, open_film)
 
+shared = take_shared_film()
+if shared is not None:
+    match = test.loc[test["tmdb_id"] == shared]
+    if not match.empty:
+        open_film(match.iloc[0]["film_key"])
+
 opened = st.session_state.pop("open_film", None)
 if opened is not None:
-    film_dialog(test.loc[test["film_key"] == opened].iloc[0])
+    with dialog_slot():
+        film_dialog(test.loc[test["film_key"] == opened].iloc[0])

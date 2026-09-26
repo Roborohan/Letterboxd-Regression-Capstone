@@ -4,8 +4,10 @@ import pandas as pd
 import streamlit as st
 
 from src.app_data import current_tables, display_name, possessive
-from src.app_ui import (card_stats, flag_html, gap, poster_grid, poster_url, pred_text, runtime_text,
-                        stars, stars_exact, thumb_html)
+from src.app_ui import (card_stats, dialog_slot, film_links, flag_html, gap, new_dialog, page_title, poster_grid, poster_url,
+                        pred_text, runtime_text, stars, stars_exact, take_shared_film, thumb_html)
+
+page_title("Coming soon")
 
 REGION_NAMES = {"GB": "the UK", "US": "the US", "IE": "Ireland", "CA": "Canada",
                 "AU": "Australia", "NZ": "New Zealand", "IN": "India", "DE": "Germany",
@@ -35,15 +37,28 @@ SOURCE = {WATCHLIST: "watchlist", POPULAR: "popular"}
 
 def open_coming_film(film_key):
     st.session_state.cs_open = film_key
+    new_dialog()
+
+
+TODAY = pd.Timestamp.today().normalize()
 
 
 def release_text(date):
     return f"{pd.Timestamp(date):%-d %b %Y}"
 
 
+def out_now(date):
+    """True once a film's release date has passed — this page is a snapshot, so many will have."""
+    return pd.Timestamp(date) <= TODAY
+
+
+OUT_NOW = "<span style='color:var(--green); font-weight:600'>out now</span>"
+
+
 def coming_caption(film, rank, of):
     length = runtime_text(film.runtime)
     return (f"<div class='card-meta'>{release_text(film.release_shown)}"
+            + (f" · {OUT_NOW}" if out_now(film.release_shown) else "")
             + (f" · {length}" if length else "") + "</div>"
             + card_stats([("Predicted", pred_text(film.pred)), ("Vs recent", gap(film.pred - recent))])
             + f"<div class='card-meta'>#{rank} of {of}</div>"
@@ -59,8 +74,9 @@ def coming_dialog(film):
                                             runtime_text(film["runtime"]), film["director"]]
                            if pd.notna(x) and x)
         genres = film["genres"].replace("|", ", ") if isinstance(film["genres"], str) else ""
-        st.markdown(f"<div class='ladder-top'>{thumb}<div class='ladder-head'>{html.escape(facts)}<br>"
-                    f"{html.escape(genres)}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='ladder-top'>{thumb}<div class='ladder-head'>{html.escape(facts)}"
+                    + (f" · {OUT_NOW}" if out_now(film["release_shown"]) else "")
+                    + f"<br>{html.escape(genres)}</div></div>", unsafe_allow_html=True)
         if isinstance(film["overview"], str) and film["overview"].strip():
             st.markdown(f"<p class='card-meta' style='max-width:55rem; margin-bottom:0.8rem'>"
                         f"{html.escape(film['overview'])}</p>", unsafe_allow_html=True)
@@ -80,6 +96,8 @@ def coming_dialog(film):
         if notes:
             st.markdown(notes, unsafe_allow_html=True)
 
+        film_links(film)
+
     show()
 
 
@@ -88,8 +106,8 @@ def coming_dialog(film):
 st.header("Coming soon", anchor=False)
 
 st.markdown(
-    f"<p class='lead'>{len(coming)} films arriving in the 90 days after "
-    f"{pd.Timestamp(summary['prediction_date']):%-d %B %Y}. None has a crowd score yet, so these use "
+    f"<p class='lead'>A snapshot taken on {pd.Timestamp(summary['prediction_date']):%-d %B %Y}: "
+    f"{len(coming)} films due out in the 90 days that followed. None had a crowd score yet, so these use "
     f"the <b>no-crowd model</b> — {model['mae_nocrowd']:.2f}&nbsp;★ average error on the test set, "
     f"against {model['mae_deploy']:.2f}&nbsp;★ for the model used everywhere else.</p>"
     f"<p class='card-meta'>Predictions are shown against {whose} average of "
@@ -124,8 +142,16 @@ if isinstance(left_out, str) and left_out:
     st.markdown(f"<p class='card-meta' style='margin-top:1rem'>Left out because TMDB has no runtime for "
                 f"them yet, which the model needs: {html.escape(names)}.</p>", unsafe_allow_html=True)
 
+shared = take_shared_film()
+if shared is not None:
+    match = coming.loc[coming["tmdb_id"] == shared]
+    if not match.empty:
+        st.session_state.cs_open = match.iloc[0]["film_key"]
+        new_dialog()
+
 opened = st.session_state.pop("cs_open", None)
 if opened is not None:
     match = coming.loc[coming["film_key"] == opened]
     if not match.empty:
-        coming_dialog(match.iloc[0])
+        with dialog_slot():
+            coming_dialog(match.iloc[0])
