@@ -68,12 +68,12 @@ N_TREES       = 300
 CROWD_COLS    = ["vote_average", "log_vote_count", "log_popularity"]
 
 
-def build_ladder(df, test_fraction=TEST_FRACTION, verbose=True):
+def build_ladder(df, test_fraction=TEST_FRACTION, verbose=True, progress=None):
     """Every model the app needs, fitted exactly as 04 fits them.
 
     Returns (train, test, preds, parts): `preds` holds the test-set predictions for each
     rung and the no-crowd variant; `parts` holds the vocabularies and feature frames the
-    watchlist run needs.
+    watchlist run needs. `progress(fraction)` is optional, called as each forest is tuned.
     """
     df = df.sort_values("watched_date").reset_index(drop=True)
     split_idx = int(len(df) * (1 - test_fraction))
@@ -103,18 +103,17 @@ def build_ladder(df, test_fraction=TEST_FRACTION, verbose=True):
         return tune(RandomForestRegressor(n_estimators=N_TREES, random_state=0),
                     RF_GRID, X, y_train, verbose=verbose)
 
-    if verbose:
-        print("Model 2 — film metadata")
-    rf_2 = rf(X2_train)
-    if verbose:
-        print("Model 3 — + viewing history")
-    rf_3 = rf(X3_train)
-    if verbose:
-        print("Model 4 — + keywords, no review length (deployable)")
-    rf_4d = rf(X4d_train)
-    if verbose:
-        print("Model 4 — no-crowd variant")
-    rf_4n = rf(X4n_train)
+    fitted = []
+    for label, X in [("Model 2 — film metadata", X2_train),
+                     ("Model 3 — + viewing history", X3_train),
+                     ("Model 4 — + keywords, no review length (deployable)", X4d_train),
+                     ("Model 4 — no-crowd variant", X4n_train)]:
+        if verbose:
+            print(label)
+        fitted.append(rf(X))
+        if progress:
+            progress(len(fitted) / 4)
+    rf_2, rf_3, rf_4d, rf_4n = fitted
 
     crowd_model = LinearRegression().fit(train[["vote_average"]], y_train)
 

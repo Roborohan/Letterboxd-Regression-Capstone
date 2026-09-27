@@ -1,14 +1,20 @@
 """TMDB matching and details — moved from 02_tmdb_enrichment.ipynb.
 
 Nothing here reads .env or hard-codes a cache location: the caller builds headers
-with make_headers(token) and passes cache paths in, so the same code serves any
-user's export and any cache (rated films, watchlist).
+with make_headers(token) and passes a cache in, so the same code serves any user's
+export and any cache.
+
+Two kinds of cache: a local JSON file of raw responses (`cache_path`, used from the
+command line), or a shared store (`store`, used by the app's uploads) — any object with
+get_many(keys) and put_many(items). The store keeps only what's used: the fields
+best_match reads from a search, and the parsed record for a film.
 """
 
 import json
 import re
 import time
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -23,14 +29,39 @@ def make_headers(token):
     return {"Authorization": f"Bearer {token}", "accept": "application/json"}
 
 
+def _get(url, *, params=None, headers, tries=4):
+    """GET with retries: TMDB rate-limits (429) and has the odd server error or timeout."""
+    for attempt in range(tries):
+        last = attempt == tries - 1
+        try:
+            r = requests.get(url, params=params, headers=headers, timeout=15)
+        except requests.RequestException:
+            if last:
+                raise
+            time.sleep(2 ** attempt)
+            continue
+        if r.status_code == 429 or r.status_code >= 500:
+            if last:
+                r.raise_for_status()
+            time.sleep(float(r.headers.get("Retry-After") or 2 ** attempt))
+            continue
+        r.raise_for_status()
+        return r.json()
+
+
 def search_film(title, year=None, *, headers):
     params = {"query": title, "include_adult": True}
     if year:
         params["year"] = year
-    r = requests.get("https://api.themoviedb.org/3/search/movie",
-                     params=params, headers=headers, timeout=15)
-    r.raise_for_status()
-    return r.json()["results"]
+    return _get("https://api.themoviedb.org/3/search/movie", params=params, headers=headers)["results"]
+
+
+SEARCH_FIELDS = ("id", "title", "original_title", "release_date", "vote_count")
+
+
+def trim_results(results):
+    """Just the fields best_match reads, from the top ten results — what a shared store keeps."""
+    return [{k: r.get(k) for k in SEARCH_FIELDS} for r in results[:10]]
 
 
 # ---------- Title comparison ----------
@@ -110,28 +141,80 @@ def best_match(results, title, year):
     }
 
 
-def match_all(films, *, headers, cache_path, delay=0.05):
-    """Match every film to TMDB, caching raw search responses."""
-    cache_path = Path(cache_path)
-    cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
-    rows, new_calls = [], 0
+WORKERS = 8          # lookups in flight at once — well inside TMDB's ~40 requests a second
 
-    for i, film in enumerate(films.itertuples(index=False), start=1):
-        key = film.film_key
-        year = None if pd.isna(film.film_year) else int(film.film_year)
 
-        if key not in cache:
-            results = search_film(film.film_title, year, headers=headers)
-            if not results:
-                results = search_film(film.film_title, headers=headers)   # year mismatch fallback
-            cache[key] = results
-            new_calls += 1
-            time.sleep(delay)
+def _lookup_many(keys, lookup, *, cache, progress, total, done_already):
+    """Run `lookup(key)` for every uncached key, several at a time, storing each result in the
+    cache as it arrives. Results are keyed, so the order they finish in doesn't matter."""
+    done = done_already
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        futures = {pool.submit(lookup, k): k for k in keys}
+        for n, future in enumerate(as_completed(futures), start=1):
+            cache[futures[future]] = future.result()
+            done += 1
+            if n % 100 == 0:
+                cache.flush()
+                print(f"  {done}/{total} processed ({n} API calls)")
+            if progress and (done % 20 == 0 or done == total):
+                progress(done, total)
+    return len(keys)
 
-            if new_calls % 100 == 0:
-                cache_path.parent.mkdir(parents=True, exist_ok=True)
-                cache_path.write_text(json.dumps(cache))
-                print(f"  {i}/{len(films)} processed ({new_calls} API calls)")
+
+class _Cache:
+    """One interface over both caches: a local JSON file of raw responses, or a shared store."""
+
+    def __init__(self, keys, cache_path=None, store=None):
+        self.path, self.store, self.pending = cache_path and Path(cache_path), store, {}
+        if store is not None:
+            self.data = store.get_many(keys)
+        else:
+            self.data = json.loads(self.path.read_text()) if self.path.exists() else {}
+
+    def __contains__(self, key):
+        return key in self.data
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
+        self.pending[key] = value
+
+    def flush(self):
+        if self.store is not None:
+            if self.pending:
+                self.store.put_many(self.pending)
+        else:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.path.write_text(json.dumps(self.data))
+        self.pending = {}
+
+
+def match_all(films, *, headers, cache_path=None, store=None, progress=None, delay=None):
+    """Match every film to TMDB, caching search responses. `progress(done, total)` is optional.
+
+    Lookups run several at a time (WORKERS); `delay` is accepted for older callers and ignored.
+    """
+    cache = _Cache(list(films["film_key"]), cache_path, store)
+    films = films.reset_index(drop=True)
+    years = {f.film_key: (None if pd.isna(f.film_year) else int(f.film_year))
+             for f in films.itertuples(index=False)}
+    titles = dict(zip(films["film_key"], films["film_title"]))
+
+    def lookup(key):
+        results = search_film(titles[key], years[key], headers=headers)
+        if not results:
+            results = search_film(titles[key], headers=headers)          # year mismatch fallback
+        return trim_results(results) if store is not None else results
+
+    todo = list(dict.fromkeys(k for k in films["film_key"] if k not in cache))
+    new_calls = _lookup_many(todo, lookup, cache=cache, progress=progress, total=len(films),
+                             done_already=len(films) - len(todo))
+    rows = []
+
+    for film in films.itertuples(index=False):
+        key, year = film.film_key, years[film.film_key]
 
         match = best_match(cache[key], film.film_title, year)
         if match is None:
@@ -141,8 +224,7 @@ def match_all(films, *, headers, cache_path, delay=0.05):
         rows.append({"film_key": key, "film_title": film.film_title,
                      "film_year": film.film_year, **match})
 
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    cache_path.write_text(json.dumps(cache))
+    cache.flush()
     print(f"done — {new_calls} new API calls, {len(rows) - new_calls} from cache")
     return pd.DataFrame(rows)
 
@@ -150,11 +232,14 @@ def match_all(films, *, headers, cache_path, delay=0.05):
 # ---------- Film details ----------
 
 def fetch_details(tmdb_id, *, headers):
-    r = requests.get(f"https://api.themoviedb.org/3/movie/{tmdb_id}",
-                     params={"append_to_response": "credits,keywords"},
-                     headers=headers, timeout=15)
-    r.raise_for_status()
-    return r.json()
+    return _get(f"https://api.themoviedb.org/3/movie/{tmdb_id}",
+                params={"append_to_response": "credits,keywords"}, headers=headers)
+
+
+PARSED_COLUMNS = ("tmdb_id", "tmdb_title", "release_date", "runtime", "original_language",
+                  "origin_country", "genres", "keywords", "overview", "vote_average", "vote_count",
+                  "popularity", "in_collection", "collection_name", "director", "cinematographer",
+                  "cast_top5", "poster_path")
 
 
 def parse_details(d):
@@ -192,31 +277,42 @@ def parse_details(d):
     }
 
 
-def fetch_all_details(tmdb_ids, *, headers, cache_path, delay=0.05):
-    """Fetch and parse detail records for every TMDB ID, caching raw responses."""
-    cache_path = Path(cache_path)
-    cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
-    rows, new_calls = [], 0
+GONE = {"gone_from_tmdb": True}      # cached for a film TMDB returns 404 for
 
-    for i, tmdb_id in enumerate(tmdb_ids, start=1):
-        key = str(int(tmdb_id))
 
-        if key not in cache:
-            cache[key] = fetch_details(int(tmdb_id), headers=headers)
-            new_calls += 1
-            time.sleep(delay)
+def fetch_all_details(tmdb_ids, *, headers, cache_path=None, store=None, progress=None, delay=None):
+    """Fetch and parse detail records for every TMDB ID.
 
-            if new_calls % 100 == 0:
-                cache_path.parent.mkdir(parents=True, exist_ok=True)
-                cache_path.write_text(json.dumps(cache))
-                print(f"  {i}/{len(tmdb_ids)} processed ({new_calls} API calls)")
+    A local cache keeps the raw responses; a shared store keeps the parsed record. A film TMDB
+    no longer has (404) is skipped and reported, rather than stopping the whole run.
+    """
+    keys = [str(int(t)) for t in tmdb_ids]
+    cache = _Cache(keys, cache_path, store)
+    rows, missing = [], []
 
-        rows.append(parse_details(cache[key]))
+    def lookup(key):
+        try:
+            raw = fetch_details(int(key), headers=headers)
+        except requests.HTTPError as e:
+            if e.response is None or e.response.status_code != 404:
+                raise
+            return GONE                               # remembered, so it isn't asked for again
+        return parse_details(raw) if store is not None else raw
 
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    cache_path.write_text(json.dumps(cache))
-    print(f"done — {new_calls} new API calls, {len(rows) - new_calls} from cache")
-    return pd.DataFrame(rows)
+    todo = list(dict.fromkeys(k for k in keys if k not in cache))
+    new_calls = _lookup_many(todo, lookup, cache=cache, progress=progress, total=len(keys),
+                             done_already=len(keys) - len(todo))
+
+    for key in keys:
+        if cache[key] == GONE:
+            missing.append(key)
+            continue
+        rows.append(cache[key] if store is not None else parse_details(cache[key]))
+
+    cache.flush()
+    print(f"done — {new_calls} new API calls, {len(rows) - new_calls} from cache"
+          + (f", {len(missing)} no longer on TMDB" if missing else ""))
+    return pd.DataFrame(rows, columns=list(PARSED_COLUMNS))
 
 # ---------- Upcoming releases ----------
 
@@ -238,12 +334,9 @@ def discover_upcoming(start, end, *, headers, pages=2, region=None):
 
     results = []
     for page in range(1, pages + 1):
-        r = requests.get("https://api.themoviedb.org/3/discover/movie",
-                         params={**params, "page": page},
-                         headers=headers, timeout=15)
-        r.raise_for_status()
-        results.extend(r.json()["results"])
-    return results
+        results.extend(_get("https://api.themoviedb.org/3/discover/movie",
+                            params={**params, "page": page}, headers=headers)["results"])
+    return [{"id": r["id"], "release_date": r.get("release_date")} for r in results]
 
 # ---------- Posters to blur in the app ----------
 

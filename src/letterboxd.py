@@ -1,7 +1,9 @@
 """Letterboxd export loading — moved from 01_data_loading.ipynb."""
 
+import io
 import re
-from pathlib import Path
+import zipfile
+from pathlib import Path, PurePosixPath
 
 import pandas as pd
 
@@ -30,6 +32,36 @@ def load_export(export_dir):
             data[f.replace(".csv", "")] = pd.read_csv(export_dir / f)
 
     return data
+
+
+MAX_EXPORT_BYTES = 100_000_000       # uncompressed; a real export is a few MB
+
+
+def load_export_zip(data, max_bytes=MAX_EXPORT_BYTES):
+    """The same dict as load_export, read from an export .zip held in memory — nothing on disk.
+
+    Letterboxd's zip has the main CSVs at the top and more copies in subfolders (deleted/,
+    orphaned/...), so each file is taken from the shallowest level it appears at.
+    """
+    try:
+        z = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile:
+        raise ValueError("That isn't a zip file. Upload the .zip Letterboxd emails you, unopened.")
+    with z:
+        if sum(i.file_size for i in z.infolist()) > max_bytes:
+            raise ValueError("That zip is far larger than a Letterboxd export.")
+        found = {}
+        for info in z.infolist():
+            path = PurePosixPath(info.filename)
+            if path.suffix == ".csv" and path.name in REQUIRED_FILES + OPTIONAL_FILES:
+                if path.name not in found or len(path.parts) < len(found[path.name].parts):
+                    found[path.name] = path
+        missing = [f for f in REQUIRED_FILES if f not in found]
+        if missing:
+            raise ValueError("This doesn't look like a Letterboxd export — it has no "
+                             + " or ".join(missing) + ".")
+        return {name.replace(".csv", ""): pd.read_csv(z.open(str(path)))
+                for name, path in found.items()}
 
 
 def film_key(df, title_col="Name", year_col="Year"):

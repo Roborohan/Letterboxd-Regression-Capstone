@@ -3,7 +3,6 @@ import math
 
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 from src.app_data import current_tables, display_name, load_reviews, possessive
 from src.app_ui import (blur_on, card_stats, censor_review, crowd, dialog_slot, excerpt, film_links,
@@ -30,12 +29,11 @@ def length_label(m):
 
 SCROLL_TOP_JS = """
 <script>
-const doc = window.parent.document;
-[doc.querySelector('[data-testid="stMain"]'),
- doc.querySelector('[data-testid="stAppViewContainer"]'),
- doc.querySelector('section.main'),
- doc.scrollingElement].forEach(el => { if (el) el.scrollTo({top: 0, behavior: "smooth"}); });
-window.parent.scrollTo({top: 0, behavior: "smooth"});
+[document.querySelector('[data-testid="stMain"]'),
+ document.querySelector('[data-testid="stAppViewContainer"]'),
+ document.querySelector('section.main'),
+ document.scrollingElement].forEach(el => { if (el) el.scrollTo({top: 0, behavior: "smooth"}); });
+window.scrollTo({top: 0, behavior: "smooth"});
 </script>
 """
 
@@ -401,7 +399,7 @@ else:
 
 if st.session_state.pop("wl_scroll_to_top", False):
     st.session_state.wl_scroll_n = st.session_state.get("wl_scroll_n", 0) + 1
-    components.html(SCROLL_TOP_JS + f"<!-- {st.session_state.wl_scroll_n} -->", height=0)
+    st.html(SCROLL_TOP_JS + f"<!-- {st.session_state.wl_scroll_n} -->", unsafe_allow_javascript=True)
 
 shared = take_shared_film()
 if shared is not None:

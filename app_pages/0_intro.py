@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 
-from src.app_data import RUNGS, current_tables, display_name, possessive
+from src.app_data import RUNGS, current_tables, display_name, is_run, possessive
 from src.app_ui import page_title, stars
 
 page_title()
@@ -40,7 +40,8 @@ LAYER_COLOUR = {        # slate: baseline · blue: the crowd · orange, green, w
 }
 
 st.markdown(
-    f"<div class='hero-kicker'>{name} · {n_rated:,} films rated</div>"
+    f"<div class='hero-kicker'>{name} · {'your upload · ' if is_run(st.session_state['user']) else ''}"
+    f"{n_rated:,} films rated</div>"
     f"<div class='hero-title'>Beyond the<br>Crowd Score</div>"
     f"<p class='lead'>Can a model learn what one person likes, beyond what everyone else likes? "
     f"Built from {whose} Letterboxd history, every film enriched with data from TMDB.</p>",

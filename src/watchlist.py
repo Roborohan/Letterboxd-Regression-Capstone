@@ -145,33 +145,45 @@ def neighbour_table(final_rf, X_fit, X_wl, rated_df, wl_out, n_neighbours=N_NEIG
 CROWD_COLS = ["vote_average", "log_vote_count", "log_popularity"]
 
 
-def popular_releases(prediction_date, *, headers, cache_dir, region="GB", pages=2,
-                     known_ids=(), top_n=20):
+def popular_releases(prediction_date, *, headers, cache_dir=None, stores=None, region="GB",
+                     pages=2, known_ids=(), top_n=20):
     """The most popular films opening in `region` in the window, excluding films already known.
 
-    Both TMDB calls are cached per region and prediction date, so a re-run costs nothing.
+    Both TMDB calls are cached per region and prediction date, so a re-run costs nothing:
+    in local files under `cache_dir`, or in shared `stores` ('discover' and 'details').
     """
-    cache_dir = Path(cache_dir)
     start = (prediction_date + pd.Timedelta(days=1)).date().isoformat()
     end   = (prediction_date + pd.Timedelta(days=WINDOW_DAYS)).date().isoformat()
+    tag   = f"{region}_{prediction_date.date()}"
 
-    discover_cache = cache_dir / f"upcoming_discover_{region}_{prediction_date.date()}.json"
-    if discover_cache.exists():
-        discovered = json.loads(discover_cache.read_text())
+    if stores is not None:
+        discovered = stores["discover"].get_many([tag]).get(tag)
+        if discovered is None:
+            discovered = discover_upcoming(start, end, headers=headers, pages=pages, region=region)
+            stores["discover"].put_many({tag: discovered})
     else:
-        discovered = discover_upcoming(start, end, headers=headers, pages=pages, region=region)
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        discover_cache.write_text(json.dumps(discovered))
+        cache_dir = Path(cache_dir)
+        discover_cache = cache_dir / f"upcoming_discover_{tag}.json"
+        if discover_cache.exists():
+            discovered = json.loads(discover_cache.read_text())
+        else:
+            discovered = discover_upcoming(start, end, headers=headers, pages=pages, region=region)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            discover_cache.write_text(json.dumps(discovered))
 
     known = set(known_ids)
     popular = list({d["id"]: d for d in discovered if d["id"] not in known}.values())
     popular = [d for d in popular if (d.get("release_date") or "") >= start]   # already in cinemas
 
-    details = fetch_all_details([d["id"] for d in popular], headers=headers,
-                                cache_path=cache_dir / f"upcoming_details_{region}_"
-                                                       f"{prediction_date.date()}.json")
+    if stores is not None:
+        details = fetch_all_details([d["id"] for d in popular], headers=headers,
+                                    store=stores["details"])
+    else:
+        details = fetch_all_details([d["id"] for d in popular], headers=headers,
+                                    cache_path=cache_dir / f"upcoming_details_{tag}.json")
+    release = {int(d["id"]): d["release_date"] for d in popular}     # a 404'd film drops out
     details["popularity_rank"] = range(1, len(details) + 1)
-    details["region_release"] = [d["release_date"] for d in popular]
+    details["region_release"] = details["tmdb_id"].astype(int).map(release).values
 
     long_enough = details["runtime"] > MAX_SHORT       # also excludes runtime 0: not known yet
     return details[long_enough].head(top_n).copy(), details

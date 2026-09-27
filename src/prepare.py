@@ -65,18 +65,32 @@ def build_viewings(export):
     return spine
 
 
-def match_and_enrich(films, *, headers, cache_dir, prefix="tmdb"):
+def match_and_enrich(films, *, headers, cache_dir=None, prefix="tmdb", stores=None, progress=None):
     """Match films to TMDB and attach their details, keeping only confident matches.
 
     The automatic policy: accept `exact` and `year_off`, drop everything else. The
     notebooks review the rest by hand for one export; a pipeline run cannot.
+
+    Caches: local JSON files in `cache_dir` named by `prefix`, or `stores` — a dict with
+    'search' and 'details' shared stores. `progress(fraction)` is optional.
     """
-    matches  = match_all(films, headers=headers, cache_path=cache_dir / f"{prefix}_search_raw.json")
+    def part(lo, hi):
+        return (lambda done, total: progress(lo + (hi - lo) * done / total)) if progress else None
+
+    if stores is not None:
+        search_cache  = {"store": stores["search"]}
+        details_cache = {"store": stores["details"]}
+    else:
+        search_cache  = {"cache_path": cache_dir / f"{prefix}_search_raw.json"}
+        details_cache = {"cache_path": cache_dir / f"{prefix}_details.json"}
+
+    matches  = match_all(films, headers=headers, progress=part(0, 0.6), **search_cache)
     accepted = matches[matches["confidence"].isin(AUTO_ACCEPT) & matches["tmdb_id"].notna()].copy()
     dropped  = matches[~matches.index.isin(accepted.index)]
 
-    details  = fetch_all_details(accepted["tmdb_id"], headers=headers,
-                                 cache_path=cache_dir / f"{prefix}_details.json")
+    details  = fetch_all_details(accepted["tmdb_id"], headers=headers, progress=part(0.6, 1),
+                                 **details_cache)
+    accepted = accepted[accepted["tmdb_id"].astype(int).isin(details["tmdb_id"].astype(int))]
     enriched = accepted.drop(columns=["vote_count"]).merge(details, on="tmdb_id", how="left")
     return enriched, dropped
 
