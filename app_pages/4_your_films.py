@@ -93,6 +93,12 @@ def show_running(rid, doc):
                     "rated</p>", unsafe_allow_html=True)
     live_progress(rid, bool(own))
 
+    st.markdown("<p class='card-meta' style='margin-top:1rem'><b style='color:var(--white)'>Your "
+                "private link</b> — keep it to come back to this upload from anywhere, before or "
+                "after it finishes. Anyone with it can see your films once they're ready.</p>",
+                unsafe_allow_html=True)
+    st.code(private_link(rid), language=None, wrap_lines=True)
+
 
 def show_done(rid, doc):
     name = doc["display_name"]
