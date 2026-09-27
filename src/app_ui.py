@@ -155,6 +155,21 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     margin-top: 0.1rem;         /* level the switch with the first line of its label */
 }
 
+/* Each settings row stays on one line: the text shrinks and wraps its own words, and the
+   switch keeps its size. Without this, narrow screens drop the text below the switch. */
+[class*="st-key-row_set_"] {
+    flex-wrap: nowrap !important;
+}
+
+[class*="st-key-row_set_"] > [data-testid="stElementContainer"]:first-child {
+    flex: 0 0 auto;
+}
+
+[class*="st-key-row_set_"] > [data-testid="stElementContainer"]:last-child {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 .setting-label {
     font-weight: 600;
     font-size: 0.95rem;
@@ -179,42 +194,6 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     width: 64px;
     height: 64px;
     border-radius: 4px;
-}
-
-/* Your films: the poster carousel while an upload is processed */
-.poster-reel {
-    overflow: hidden;
-    margin: 1.2rem 0 0.6rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
-}
-
-.reel-track {
-    display: flex;
-    gap: 0.75rem;
-    width: max-content;
-    animation: reel 110s linear infinite;
-}
-
-.reel-track.reverse {
-    animation-direction: reverse;
-    animation-duration: 130s;
-}
-
-.reel-track img {
-    height: 170px;
-    aspect-ratio: 2 / 3;
-    object-fit: cover;
-    border-radius: 6px;
-    background: var(--surface);
-}
-
-@keyframes reel {
-    from { transform: translateX(0); }
-    to   { transform: translateX(-50%); }        /* the row is doubled, so -50% loops seamlessly */
 }
 
 /* The rated films behind a prediction, inside the Why? modal */
@@ -568,10 +547,9 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     .neighbours { grid-template-columns: 1fr; gap: 0.9rem; }
 
     [data-testid="stPopoverBody"] { min-width: 0; max-width: 92vw; }
-    .viewer-label { display: none; }
+    .st-key-viewer_label_box { display: none !important; }    /* the pills start at the left edge */
 
     .qr-desktop { display: none !important; }
-    .reel-track img { height: 115px; }
 
     /* poster grids: three across, not one giant poster per row */
     [data-testid="stHorizontalBlock"]:has([class*="st-key-card_"]) {
