@@ -106,8 +106,16 @@ elif st.session_state.get("user") not in users:
     st.session_state.pop("user", None)          # e.g. an upload that has just been deleted
 
 
+MAX_PILLS = 5          # beyond this many viewers, the pills give way to a dropdown
+
+
 def viewer_label(user):
     return f":material/person: {display_name(user)} · you" if is_run(user) else display_name(user)
+
+
+def viewer_option(user):
+    """Dropdowns show plain text, so an upload says '(you)' rather than using the person icon."""
+    return f"{display_name(user)} (you)" if is_run(user) else display_name(user)
 
 # One row: whose films as name pills on the left, the settings menu on the right.
 with st.container(key="top_bar", horizontal=True, horizontal_alignment="distribute",
@@ -119,9 +127,15 @@ with st.container(key="top_bar", horizontal=True, horizontal_alignment="distribu
                 st.markdown("<span class='viewer-label'>Viewing</span>", unsafe_allow_html=True,
                             width="content")
             shared_user = st.query_params.get("u")          # a shared link can pick the viewer
-            st.segmented_control("Whose films?", users, required=True,
-                                 default=shared_user if shared_user in users else users[0],
-                                 format_func=viewer_label, key="user", label_visibility="collapsed")
+            start = shared_user if shared_user in users else users[0]
+            if len(users) <= MAX_PILLS:
+                st.segmented_control("Whose films?", users, required=True, default=start,
+                                     format_func=viewer_label, key="user",
+                                     label_visibility="collapsed")
+            else:
+                st.selectbox("Whose films?", users, index=users.index(start),
+                             format_func=viewer_option, key="user",
+                             label_visibility="collapsed", width=240)
         else:
             st.session_state["user"] = users[0]
     with st.popover(":material/settings:", help="Settings"):

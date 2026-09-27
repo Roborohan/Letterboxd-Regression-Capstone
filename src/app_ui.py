@@ -663,6 +663,13 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     }
     .st-key-viewer_pills {
         height: auto !important;               /* full height: nothing clipped */
+        gap: 0 !important;
+    }
+    /* With the gear up in the header, nothing else in this row needs placing: pack it to the
+       left. Otherwise its spare space — when a few pills don't fill it — lands before the pills. */
+    .st-key-top_bar {
+        justify-content: flex-start !important;
+        gap: 0 !important;
     }
 
     .qr-desktop { display: none !important; }
