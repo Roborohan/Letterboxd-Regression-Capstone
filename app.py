@@ -7,7 +7,8 @@ from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 
-from src.app_data import display_name, list_users
+from src.app_data import display_name, is_run, list_users, run_id
+from src.app_runs import ready_viewers, sweep_expired, sync_cookie, touch_once
 from src.app_ui import inject_css
 
 LOGO      = Path(__file__).parent / "assets" / "logo.png"
@@ -53,9 +54,16 @@ data exports, used with each person's permission. This app is an independent pro
 not affiliated with, endorsed by or sponsored by Letterboxd. "Letterboxd" and its logo are
 trademarks of Letterboxd Limited.
 
-**What's published:** film titles, ratings, predictions, summary figures, and short excerpts from
-reviews where they help explain a prediction. Reviews are never an input to the model. Nothing
-is collected from visitors to this app.
+**What's published:** for the example viewers, film titles, ratings, predictions, summary figures,
+and short excerpts from reviews where they help explain a prediction. Reviews are never an input
+to the model.
+
+**If you upload your own export:** it's read in memory and never stored. Only the results are
+kept: the same kinds of tables as above, held in Google Cloud Firestore (London). They're
+visible only in the browser you uploaded from, or to anyone you give your private link. They're
+deleted automatically 90 days after you last viewed them, or immediately from the "Your films"
+page. A small cookie remembers which results are yours; it holds no data itself. Nothing else is
+collected from visitors to this app.
 
 **Content:** strong language in review excerpts is always masked. Posters for films TMDB marks
 as explicit are blurred by default, which can be changed in the ⚙ menu.
@@ -85,6 +93,19 @@ default = os.getenv("DEFAULT_USER")
 if default in users:
     users = [default] + [u for u in users if u != default]
 
+# This browser's own finished uploads go first. Nobody else sees them.
+users = ready_viewers() + users
+
+switch = st.session_state.pop("_switch_user", None)
+if switch in users:
+    st.session_state["user"] = switch
+elif st.session_state.get("user") not in users:
+    st.session_state.pop("user", None)          # e.g. an upload that has just been deleted
+
+
+def viewer_label(user):
+    return f":material/person: {display_name(user)} · you" if is_run(user) else display_name(user)
+
 # One row: whose films as name pills on the left, the settings menu on the right.
 with st.container(key="top_bar", horizontal=True, horizontal_alignment="distribute",
                   vertical_alignment="center", gap="small", wrap=False):
@@ -96,7 +117,7 @@ with st.container(key="top_bar", horizontal=True, horizontal_alignment="distribu
             shared_user = st.query_params.get("u")          # a shared link can pick the viewer
             st.segmented_control("Whose films?", users, required=True,
                                  default=shared_user if shared_user in users else users[0],
-                                 format_func=display_name, key="user", label_visibility="collapsed")
+                                 format_func=viewer_label, key="user", label_visibility="collapsed")
         else:
             st.session_state["user"] = users[0]
     with st.popover(":material/settings:", help="Settings"):
@@ -110,6 +131,10 @@ with st.container(key="top_bar", horizontal=True, horizontal_alignment="distribu
 
 if len(users) > 1:                      # keep the address bar in step, so it can be shared as is
     st.query_params["u"] = st.session_state["user"]
+if is_run(st.session_state["user"]):
+    touch_once(run_id(st.session_state["user"]))     # viewing an upload keeps it another 90 days
+sync_cookie()
+sweep_expired()                          # the app's own 90-day deletion; runs every few hours
 
 if st.session_state.get("set_motion"):
     st.markdown("<style>*, *::before, *::after { animation: none !important; "
@@ -120,6 +145,7 @@ pages = [
     st.Page("app_pages/1_beyond_the_crowd.py",  title="Beyond the crowd"),
     st.Page("app_pages/2_watchlist.py",         title="Watchlist"),
     st.Page("app_pages/3_coming_soon.py",       title="Coming soon"),
+    st.Page("app_pages/4_your_films.py",        title="Your films"),
 ]
 
 st.navigation(pages, position="top").run()
