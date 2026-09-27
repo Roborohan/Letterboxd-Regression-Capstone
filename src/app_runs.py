@@ -31,9 +31,10 @@ log = logging.getLogger(__name__)
 
 @st.cache_resource(show_spinner=False)
 def get_runner():
-    """One runner, and so one worker thread, per server process."""
+    """One runner, and so one worker thread, per server process — or None when uploads can't
+    work here (no TMDB token, or no Firestore credentials), which the Your films page explains."""
     token = tmdb_token()
-    if not token:
+    if not token or not store.configured():
         return None
     return Runner(token)
 
@@ -45,6 +46,8 @@ def sweep_expired():
     This is the app's stand-in for Firestore's TTL deletion, which needs billing enabled.
     A failure here must never break the page, so it's logged and tried again next time.
     """
+    if not store.configured():
+        return 0
     try:
         n = store.delete_expired()
         if n:
@@ -70,6 +73,8 @@ def run_doc(rid):
 
 def known_runs():
     """This browser's run ids, newest first: this session's, the cookie's, and any in the link."""
+    if not store.configured():
+        return []
     ids = st.session_state.setdefault("my_runs", [])
     if not st.session_state.get("_runs_loaded"):
         cookie = st.context.cookies.get(COOKIE, "")

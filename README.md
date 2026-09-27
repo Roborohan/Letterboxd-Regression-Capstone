@@ -57,7 +57,8 @@ which is the point: the pipeline travels, the finding is one person's.
 
 ## The app
 
-Four pages, all reading precomputed tables — no model runs in the app.
+Five pages. The first four show the example viewers from precomputed tables; the fifth builds
+the same thing from your own Letterboxd export.
 
 1. **Intro** — the question, the data, and what each layer of the model knows.
 2. **Beyond the crowd** — the 12 best-known held-out films, chosen by TMDB vote count alone.
@@ -67,10 +68,30 @@ Four pages, all reading precomputed tables — no model runs in the app.
    likely misses, or the biggest gap above or below the crowd-based estimate. Open a film
    for the rated films the prediction drew on.
 4. **Coming soon** — unreleased films, predicted by a variant that never sees a crowd score.
+5. **Your films** — upload your own export and the whole pipeline runs on it, in the
+   background. See below.
 
 A selector switches between viewers, and a settings menu can turn off the blur on explicit
 posters, show predictions unrounded, or reduce motion. Strong language in quoted review excerpts
-is always masked. It works on phones as well as desktop.
+is always masked. Every film links to its Letterboxd page, every prediction has a shareable link,
+and the watchlist can be searched and filtered by genre, decade and length. It works on phones as
+well as desktop.
+
+### Upload your own export
+
+Download your data from Letterboxd (**Settings → Data → Export your data**) and upload the zip on
+the **Your films** page. The same pipeline the project uses runs on it — TMDB matching, the full
+model ladder with its test against the crowd score, the watchlist and coming soon — and every page
+of the app then works with your films. You need at least 300 rated diary entries and a watchlist.
+
+- **It runs in the background**, with progress and a carousel of your own posters while you wait:
+  usually 3–6 minutes, less when other people have uploaded the same films. You can close the page
+  and come back.
+- **Your results stay yours.** Only the browser you uploaded from sees them, or anyone you give the
+  private link to. The download bundles every result into one file, which can be uploaded again to
+  restore them instantly.
+- **Nothing is kept longer than it needs to be.** The export is read in memory and never stored; the
+  results are deleted 90 days after they were last viewed, or immediately from the page.
 
 ---
 
@@ -85,7 +106,14 @@ is always masked. It works on phones as well as desktop.
 | **05** `watchlist` | Refits the chosen model on every rated viewing and predicts the watchlist, the crowd gap, and the films behind each prediction. |
 
 The notebooks are the record of the analysis and the decisions behind it. The reusable
-code lives in `src/`, and `run_pipeline.py` repeats the same steps for any export.
+code lives in `src/`, and `src/pipeline.py` runs every step on any export. It's used two ways:
+
+- **`run_pipeline.py`**, from the command line: local caches, results written to
+  `data/processed/<username>/`.
+- **The app's uploads** (`src/runner.py`): a background worker takes one upload at a time, runs the
+  same pipeline against a TMDB cache shared by every upload, and saves the results to Firestore
+  (`src/store.py`). Because the film data is shared, each upload only looks up the films nobody
+  has uploaded before.
 
 ---
 
@@ -126,6 +154,27 @@ opens on.
 The notebooks always work on whichever export ran last, so `02`–`05` stop with a clear message
 if that isn't the user they were written for.
 
+### Uploads (optional)
+
+The app runs without any of this; only the **Your films** page needs it, and it says so if it's
+missing. Uploads keep their results in [Firestore](https://firebase.google.com/docs/firestore) on
+the free Spark plan. Create a Firebase project with a Firestore database, generate a service account
+key (Project settings → Service accounts), and add it to `.streamlit/secrets.toml`, which is
+gitignored:
+
+```toml
+[firestore]
+type = "service_account"
+project_id = "your-project-id"
+private_key = "-----BEGIN PRIVATE KEY-----\n…\n-----END PRIVATE KEY-----\n"
+client_email = "…"
+# …the rest of the key file's fields, one per line
+```
+
+When deploying, the same `[firestore]` block and `TMDB_TOKEN` go in the host's secrets instead.
+Expired results are deleted by the app itself every few hours; Firestore's own automatic deletion
+would need billing enabled, which the project avoids so that it can never incur charges.
+
 ---
 
 ## Data and privacy
@@ -139,6 +188,10 @@ if that isn't the user they were written for.
   deployed copy, delete `data/processed/<username>/reviews.csv` — the app simply omits them.
 - Deploying publicly makes any committed user's ratings and watchlist public. Get their
   agreement first.
+- **Uploads:** the export is read in memory and never written anywhere. Only the app's result
+  tables are kept, in Firestore (London), under a long random id that works as a private link; a
+  cookie remembers which results belong to a browser and holds nothing else. Results are deleted 90
+  days after they were last viewed, or immediately on request.
 
 ---
 

@@ -181,7 +181,9 @@ def upload_form(first):
         unsafe_allow_html=True)
 
     if runner is None:
-        st.warning("Uploads aren't available on this copy of the app: it has no TMDB token set.")
+        st.warning("Uploads aren't available on this copy of the app: they need a TMDB token and "
+                   "Firestore credentials, and one or both aren't set. The example viewers work as "
+                   "normal.")
         return
 
     data = st.file_uploader("Your Letterboxd export, or a results file you downloaded before",

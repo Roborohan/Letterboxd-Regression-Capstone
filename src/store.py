@@ -49,6 +49,15 @@ def _credentials_info():
         return tomllib.load(f)["firestore"]
 
 
+def configured():
+    """Whether Firestore credentials are available. Without them the app still runs — the example
+    viewers need no database — and only uploads are switched off."""
+    try:
+        return bool(_credentials_info().get("project_id"))
+    except Exception:
+        return False
+
+
 @lru_cache(maxsize=1)
 def client():
     info = _credentials_info()
