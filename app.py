@@ -24,13 +24,16 @@ def data_uri(path):
 
 
 def setting(label, key, default, note):
-    """One settings row: the switch, then its text. The text sits outside the switch's label,
-    so only the switch itself toggles."""
-    with st.container(horizontal=True, vertical_alignment="top", gap="medium", key=f"row_{key}",
-                      wrap=False):
-        st.toggle(label, value=default, key=key, label_visibility="collapsed")
-        st.markdown(f"<div class='setting-label'>{label}</div>"
-                    f"<div class='setting-note'>{note}</div>", unsafe_allow_html=True, width="stretch")
+    """One settings row: the switch in one column, its text in another. The text sits outside the
+    switch's label, so only the switch itself toggles; the CSS sizes the first column to the switch
+    and keeps the two side by side on phones."""
+    with st.container(key=f"row_{key}"):
+        switch, text = st.columns([1, 8], vertical_alignment="top", gap="small")
+        with switch:
+            st.toggle(label, value=default, key=key, label_visibility="collapsed")
+        with text:
+            st.markdown(f"<div class='setting-label'>{label}</div>"
+                        f"<div class='setting-note'>{note}</div>", unsafe_allow_html=True)
 
 
 @st.dialog("Data sources & attribution", width="large")
@@ -109,7 +112,8 @@ def viewer_label(user):
 # One row: whose films as name pills on the left, the settings menu on the right.
 with st.container(key="top_bar", horizontal=True, horizontal_alignment="distribute",
                   vertical_alignment="center", gap="small", wrap=False):
-    with st.container(horizontal=True, vertical_alignment="center", gap="small", width="content"):
+    with st.container(horizontal=True, vertical_alignment="center", gap="small", width="content",
+                      key="viewer_pills"):                  # scrolls sideways if it's too wide
         if len(users) > 1:
             with st.container(key="viewer_label_box", width="content"):   # hidden on phones
                 st.markdown("<span class='viewer-label'>Viewing</span>", unsafe_allow_html=True,

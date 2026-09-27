@@ -134,6 +134,52 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     white-space: nowrap;
 }
 
+/* Top bar: however many viewers there are, the gear keeps its place on the right. The pills take
+   the space that's left and scroll sideways when they don't fit (a phone with an upload added). */
+.st-key-top_bar {
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+}
+
+.st-key-viewer_pills {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    align-items: center !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;                   /* scrollable, without a visible bar */
+    -webkit-overflow-scrolling: touch;
+}
+
+.st-key-viewer_pills::-webkit-scrollbar {
+    display: none;
+}
+
+.st-key-viewer_pills [data-testid="stButtonGroup"],
+.st-key-viewer_pills [data-testid="stButtonGroup"] > div {
+    flex-wrap: nowrap !important;
+    width: max-content;
+    margin: 0 !important;
+}
+
+/* the pills and the gear share one fixed height, so they line up without relying on centring */
+.st-key-viewer_pills {
+    height: 2.4rem;
+}
+
+.st-key-viewer_pills button {
+    height: 2.2rem !important;
+    min-height: 2.2rem !important;
+}
+
+/* the gear, and whatever wraps it, never shrinks or gets pushed off the edge */
+.st-key-top_bar [data-testid="stPopover"],
+.st-key-top_bar div:has(> [data-testid="stPopover"]) {
+    flex: none !important;
+    margin: 0 !important;
+}
+
 /* Top bar: the gear matches the pills' height */
 .st-key-top_bar [data-testid="stPopover"] button {
     height: 2.2rem;
@@ -155,23 +201,25 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     margin-top: 0.1rem;         /* level the switch with the first line of its label */
 }
 
-/* Each settings row stays on one line: the text shrinks and wraps its own words, and the
-   switch keeps its size. Without this, narrow screens drop the text below the switch. */
-[class*="st-key-row_set_"] {
+/* Each settings row is two columns: the switch's, sized to the switch, and the text's, taking
+   the rest. Columns grow with their content, so a note that wraps is shown in full; and they stay
+   side by side on phones, where Streamlit would otherwise stack them. */
+[class*="st-key-row_set_"] [data-testid="stHorizontalBlock"] {
     flex-wrap: nowrap !important;
+    gap: 1rem !important;
+    align-items: flex-start !important;
 }
 
-[class*="st-key-row_set_"] > [data-testid="stElementContainer"]:first-child {
-    flex: 0 0 auto;
+[class*="st-key-row_set_"] [data-testid="stColumn"]:first-child {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
 }
 
-[class*="st-key-row_set_"] > [data-testid="stElementContainer"]:last-child,
-[class*="st-key-row_set_"] > [data-testid="stElementContainer"]:last-child * {
-    flex: 1 1 auto;
-    min-width: 0;
-    height: auto !important;            /* let the note grow to its second line, not clip it */
-    max-height: none !important;
-    overflow: visible !important;
+[class*="st-key-row_set_"] [data-testid="stColumn"]:last-child {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
 }
 
 .setting-label {
@@ -588,6 +636,34 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
 
     [data-testid="stPopoverBody"] { min-width: 0; max-width: 92vw; }
     .st-key-viewer_label_box { display: none !important; }    /* the pills start at the left edge */
+
+    /* The gear moves up into the header, just right of the » menu button — the header's free
+       space on phones (Streamlit Cloud puts its own buttons in the top-right corner). The pills
+       then have the row to themselves, so there's nothing to line them up with. */
+    .st-key-top_bar [data-testid="stPopover"] {
+        position: fixed !important;
+        top: 12px;                               /* centred on the logo */
+        right: 16px;                             /* the header's top-right corner */
+        left: auto !important;
+        z-index: 1000001;
+        width: max-content !important;          /* its own size — the wrapper is full width */
+    }
+    /* On Streamlit Cloud, that corner holds Cloud's own Fork and GitHub buttons: sit just left of them */
+    body:has([data-testid="stToolbarActionButton"]) .st-key-top_bar [data-testid="stPopover"] {
+        right: 112px;
+    }
+    /* …and out of the way while the page menu is open */
+    body:has([data-testid="stSidebar"][aria-expanded="true"]) .st-key-top_bar [data-testid="stPopover"] {
+        display: none !important;
+    }
+    .st-key-top_bar [data-testid="stPopover"] > div,
+    .st-key-top_bar [data-testid="stPopover"] button {
+        width: auto !important;
+        min-width: 0 !important;
+    }
+    .st-key-viewer_pills {
+        height: auto !important;               /* full height: nothing clipped */
+    }
 
     .qr-desktop { display: none !important; }
     .reel-track img { height: 115px; }
