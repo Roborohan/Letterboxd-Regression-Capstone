@@ -635,7 +635,21 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     .neighbours { grid-template-columns: 1fr; gap: 0.9rem; }
 
     [data-testid="stPopoverBody"] { min-width: 0; max-width: 92vw; }
-    .st-key-viewer_label_box { display: none !important; }    /* the pills start at the left edge */
+    /* The pills start at the left edge: hide the VIEWING box *and* the wrapper Streamlit puts round
+       it (which otherwise keeps its place in the row), and the pills' collapsed "Whose films?"
+       label, and clear any spacing on the boxes between the row and the pills. */
+    .st-key-viewer_label_box,
+    .st-key-viewer_pills > [data-testid="stLayoutWrapper"]:has(.st-key-viewer_label_box),
+    .st-key-viewer_pills [data-testid="stWidgetLabel"] {
+        display: none !important;
+    }
+    .st-key-top_bar > [data-testid="stLayoutWrapper"],
+    .st-key-viewer_pills,
+    .st-key-viewer_pills [data-testid="stElementContainer"],
+    .st-key-viewer_pills [data-testid="stButtonGroup"] {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
 
     /* The gear moves up into the header, just right of the » menu button — the header's free
        space on phones (Streamlit Cloud puts its own buttons in the top-right corner). The pills
