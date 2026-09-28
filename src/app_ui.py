@@ -769,6 +769,22 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     /* mode switches wrap rather than overflow */
     .st-key-wl_mode button, .st-key-cs_mode button { min-height: 2.2rem; padding: 0.3rem 0.65rem; }
     .st-key-wl_mode button p, .st-key-cs_mode button p { font-size: 0.9rem; }
+
+        /* mode switches wrap rather than overflow */
+    .st-key-wl_mode button, .st-key-cs_mode button { min-height: 2.2rem; padding: 0.3rem 0.65rem; }
+    .st-key-wl_mode button p, .st-key-cs_mode button p { font-size: 0.9rem; }
+
+    /* Coming soon's two pills stay on one line; if a long region name doesn't fit, they slide */
+    .st-key-cs_mode {
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .st-key-cs_mode::-webkit-scrollbar { display: none; }
+    .st-key-cs_mode [data-testid="stButtonGroup"],
+    .st-key-cs_mode [data-testid="stButtonGroup"] > div {
+        flex-wrap: nowrap !important;
+        width: max-content;
+    }
 }
 
 """

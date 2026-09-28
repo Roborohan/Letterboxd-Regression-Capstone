@@ -26,7 +26,7 @@ region   = summary.get("region")
 in_area  = (f"in {REGION_NAMES.get(region, region)}" if isinstance(region, str) and region
             else "worldwide")
 
-WATCHLIST, POPULAR = "On the watchlist", f"Popular releases {in_area}"
+WATCHLIST, POPULAR = "Watchlist", f"Popular releases {in_area}"
 BLURB = {
     WATCHLIST: "Unreleased films {whose} watchlist already has — the recognisable ones are usually here.",
     POPULAR:   f"The most popular films opening {in_area} in the same window that aren't already "
