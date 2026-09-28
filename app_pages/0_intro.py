@@ -8,6 +8,12 @@ from src.app_ui import page_title, stars
 
 page_title()
 
+# Page links carry Streamlit's own padding (for their hover highlight), which pushes their text
+# right of the paragraphs around them. These two sit in named containers so their text lines up.
+st.markdown("<style>.st-key-intro_upload_link a, .st-key-intro_demo_link a "
+            "{ padding-left: 0 !important; margin-left: 0 !important; }</style>",
+            unsafe_allow_html=True)
+
 tables  = current_tables()
 summary = tables["model_summary"]
 user    = st.session_state["user"]
@@ -65,7 +71,8 @@ st.markdown(f"<p class='card-meta' style='margin-top:-0.6rem'>{who} Switch betwe
             f"{'.' if is_run(user) else ', or see the same for your own films:'}</p>",
             unsafe_allow_html=True)
 if not is_run(user):
-    st.page_link("app_pages/4_your_films.py", label="Upload your Letterboxd export →")
+    with st.container(key="intro_upload_link"):
+        st.page_link("app_pages/4_your_films.py", label="Upload your Letterboxd export →")
 
 st.markdown(
     f"<div class='stats'>"
@@ -104,4 +111,5 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.page_link("app_pages/1_beyond_the_crowd.py", label="Start the demo →")
+with st.container(key="intro_demo_link"):
+    st.page_link("app_pages/1_beyond_the_crowd.py", label="Start the demo →")
