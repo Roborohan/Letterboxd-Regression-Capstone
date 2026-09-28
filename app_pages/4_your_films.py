@@ -99,6 +99,12 @@ def show_running(rid, doc):
                 unsafe_allow_html=True)
     st.code(private_link(rid), language=None, wrap_lines=True)
 
+    with st.popover("Cancel this upload", icon=":material/close:"):
+        st.markdown("It stops, and nothing from it is kept. You can upload again whenever you like.")
+        if st.button("Yes, cancel it", type="primary", key=f"cancel_{rid}"):
+            delete(rid)
+            st.rerun()
+
 
 def show_done(rid, doc):
     name = doc["display_name"]

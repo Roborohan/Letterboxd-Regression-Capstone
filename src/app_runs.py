@@ -228,8 +228,15 @@ def restore(data):
 
 
 def delete(rid):
-    """Remove a run everywhere: Firestore, this browser's list, and the app's caches."""
-    store.delete_run(rid)
+    """Remove a run everywhere: Firestore, this browser's list, and the app's caches.
+
+    A run still queued or running is cancelled instead: its worker stops and deletes it (deleting
+    it here would be undone by the worker's next progress update)."""
+    doc = store.get_run(rid)
+    if doc and doc.get("status") in ("queued", "running"):
+        store.cancel_run(rid)
+    else:
+        store.delete_run(rid)
     forget(rid)
     run_doc.clear()
     run_files.clear()

@@ -100,6 +100,12 @@ def update_run(run_id, **fields):
     _run(run_id).set({**fields, "updated_at": now, "expires_at": now + KEEP_FOR}, merge=True)
 
 
+def cancel_run(run_id):
+    """Mark a queued or running upload as cancelled. The worker notices, stops, and deletes it —
+    deleting it here instead would be undone by the worker's next progress update."""
+    update_run(run_id, status="cancelled", stage="Cancelled")
+
+
 def get_run(run_id):
     """The run's document as a dict, or None if it doesn't exist (never did, deleted or expired).
 
@@ -117,15 +123,15 @@ def get_run(run_id):
 
 
 def delete_expired():
-    """Delete every run, with its files, whose expiry date has passed. Returns how many."""
-    expired = (client().collection("runs")
-               .where(filter=firestore.FieldFilter("expires_at", "<=", _now()))
-               .stream())
-    n = 0
-    for snap in expired:
-        delete_run(snap.id)
-        n += 1
-    return n
+    """Delete every run, with its files, whose expiry date has passed — and any cancelled run
+    left behind by a worker that stopped before it could tidy up. Returns how many."""
+    runs = client().collection("runs")
+    expired = runs.where(filter=firestore.FieldFilter("expires_at", "<=", _now())).stream()
+    cancelled = runs.where(filter=firestore.FieldFilter("status", "==", "cancelled")).stream()
+    ids = {snap.id for snap in expired} | {snap.id for snap in cancelled}
+    for run_id in ids:
+        delete_run(run_id)
+    return len(ids)
 
 
 def touch(run_id):

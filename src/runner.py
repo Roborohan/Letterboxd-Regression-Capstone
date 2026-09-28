@@ -28,12 +28,22 @@ log = logging.getLogger(__name__)
 
 STALE_AFTER     = timedelta(minutes=20)   # a run silent this long was cut off by a restart
 WRITE_EVERY     = 2.0                     # seconds between progress writes to Firestore
+CHECK_EVERY     = 3.0                     # seconds between checks for a cancellation
 N_POSTERS       = 30
 
 INTERRUPTED = ("The app restarted while this was running, so it didn't finish. "
                "Please upload your export again.")
 SOMETHING_WENT_WRONG = ("Something went wrong on our side while processing your export. "
                         "Please try again in a few minutes.")
+
+
+class RunCancelled(Exception):
+    """The uploader cancelled: stop, and delete whatever the run had made."""
+
+
+def is_cancelled(run_id):
+    doc = store.get_run(run_id)
+    return doc is None or doc.get("status") == "cancelled"
 
 
 def is_stale(run_doc):
@@ -97,13 +107,25 @@ class Runner:
                 self.jobs.task_done()
 
     def _run_one(self, run_id, export, user, name, region):
-        last_write = [0.0]
+        if is_cancelled(run_id):                  # cancelled while it waited in the queue
+            store.delete_run(run_id)
+            return
+
+        last_write, last_check = [0.0], [0.0]
+
+        def check_cancelled():
+            now = time.monotonic()
+            if now - last_check[0] >= CHECK_EVERY:
+                last_check[0] = now
+                if is_cancelled(run_id):
+                    raise RunCancelled()
 
         def progress(fraction, stage, detail=""):
+            check_cancelled()
             now = time.monotonic()
             if now - last_write[0] >= WRITE_EVERY or fraction >= 0.99:
-                store.update_run(run_id, status="running", progress=round(fraction, 3),
-                                 stage=stage, message=detail)
+                # no status here: a status write could overwrite a cancellation made meanwhile
+                store.update_run(run_id, progress=round(fraction, 3), stage=stage, message=detail)
                 last_write[0] = now
 
         def on_matched(films):
@@ -116,10 +138,16 @@ class Runner:
                                date=pd.Timestamp.today().normalize(), user=user, name=name,
                                region=region, stores=store.shared_caches(), log=lambda *a: None,
                                progress=progress, on_matched=on_matched)
+            if is_cancelled(run_id):
+                raise RunCancelled()
             store.update_run(run_id, stage="Saving your results", progress=0.995)
             store.save_files(run_id, app_files)
+            if is_cancelled(run_id):              # cancelled while saving: don't keep anything
+                raise RunCancelled()
             store.update_run(run_id, status="done", stage="Done", progress=1.0, message="",
                              seconds=round(time.monotonic() - started))
+        except RunCancelled:
+            store.delete_run(run_id)
         except PipelineError as e:
             store.update_run(run_id, status="failed", stage="Couldn't finish", message=str(e))
         except Exception:
