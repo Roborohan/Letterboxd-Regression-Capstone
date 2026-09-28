@@ -86,7 +86,8 @@ of the app then works with your films. You need at least 300 rated diary entries
 
 - **It runs in the background**, with progress and a carousel of your own posters while you wait:
   usually 3–6 minutes, less when other people have uploaded the same films. You can close the page
-  and come back.
+  and come back, and a banner on every page shows it's still going. Change your mind, and it can be
+  cancelled at any point: it stops, and nothing from it is kept.
 - **Your results stay yours.** Only the browser you uploaded from sees them, or anyone you give the
   private link to. The download bundles every result into one file, which can be uploaded again to
   restore them instantly.
@@ -202,6 +203,13 @@ study, not a claim about viewers in general. The watchlist is a pool the viewer 
 you like this film you picked", not "will you like a random film". Low ratings are rare,
 extremes are hardest to predict, and TMDB's crowd fields are read as they are today rather
 than as they were when each film was watched.
+
+Uploads run on free hosting, and it shows at the edges. They're processed one at a time, so a
+second person waits their turn. The app sleeps after about 12 hours without visitors (the first
+visit after that takes around 30 seconds), and an upload left running with nobody watching can be
+lost if it sleeps mid-run; the page says so, and uploading again is all it takes. And Firestore's
+free daily limits could, on an unusually busy day, pause uploads until they reset — the example
+viewers are unaffected.
 
 ---
 
