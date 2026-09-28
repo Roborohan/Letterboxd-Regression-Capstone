@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 import streamlit as st
 
@@ -8,7 +10,8 @@ page_title()
 
 tables  = current_tables()
 summary = tables["model_summary"]
-name    = display_name(st.session_state["user"])
+user    = st.session_state["user"]
+name    = display_name(user)
 whose   = possessive(name)
 
 n_rated = int(summary["n_rated"])
@@ -16,6 +19,15 @@ n_test  = int(summary["n_test"])
 n_watch = len(tables["watchlist"])
 period  = (f"{pd.Timestamp(summary['first_watched']):%b %Y} – "
            f"{pd.Timestamp(summary['last_watched']):%b %Y}")
+
+# Who a new visitor is looking at. The app's creator is DEFAULT_USER, the viewer it opens on;
+# any other folder is an example someone shared, and an upload is the visitor's own.
+if is_run(user):
+    who = "These are your films, from your upload."
+elif user == os.getenv("DEFAULT_USER"):
+    who = f"These are the films of {name}, who built this app."
+else:
+    who = f"These are {whose} films, shared as an example."
 
 LAYER_DETAIL = {
     "pred_m0":     f"Predicts {stars(summary['median_rating'])}, {whose} median rating, for every film. "
@@ -40,13 +52,20 @@ LAYER_COLOUR = {        # slate: baseline · blue: the crowd · orange, green, w
 }
 
 st.markdown(
-    f"<div class='hero-kicker'>{name} · {'your upload · ' if is_run(st.session_state['user']) else ''}"
+    f"<div class='hero-kicker'>{name} · {'your upload · ' if is_run(user) else ''}"
     f"{n_rated:,} films rated</div>"
     f"<div class='hero-title'>Beyond the<br>Crowd Score</div>"
     f"<p class='lead'>Can a model learn what one person likes, beyond what everyone else likes? "
     f"Built from {whose} Letterboxd history, every film enriched with data from TMDB.</p>",
     unsafe_allow_html=True,
 )
+
+# Who this is, what the pills do, and that a visitor can add themselves — for anyone arriving cold.
+st.markdown(f"<p class='card-meta' style='margin-top:-0.6rem'>{who} Switch between viewers above"
+            f"{'.' if is_run(user) else ', or see the same for your own films:'}</p>",
+            unsafe_allow_html=True)
+if not is_run(user):
+    st.page_link("app_pages/4_your_films.py", label="Upload your Letterboxd export →")
 
 st.markdown(
     f"<div class='stats'>"
