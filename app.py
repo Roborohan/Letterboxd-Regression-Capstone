@@ -1,6 +1,7 @@
 """Beyond the Crowd Score — Streamlit app (entry point and page router)."""
 
 import base64
+import html
 import os
 from pathlib import Path
 
@@ -8,7 +9,8 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from src.app_data import display_name, is_run, list_users, run_id
-from src.app_runs import ready_viewers, sweep_expired, sync_cookie, touch_once
+from src.app_runs import (active_uploads, bridge_cookie, ready_viewers, sweep_expired,
+                          sync_cookie, touch_once)
 from src.app_ui import inject_css
 
 LOGO      = Path(__file__).parent / "assets" / "logo.png"
@@ -152,6 +154,7 @@ if len(users) > 1:                      # keep the address bar in step, so it ca
 if is_run(st.session_state["user"]):
     touch_once(run_id(st.session_state["user"]))     # viewing an upload keeps it another 90 days
 sync_cookie()
+bridge_cookie()                          # where the host hides the cookie, the page sends it once
 sweep_expired()                          # the app's own 90-day deletion; runs every few hours
 
 if st.session_state.get("set_motion"):
@@ -166,7 +169,21 @@ pages = [
     st.Page("app_pages/4_your_films.py",        title="Your films"),
 ]
 
-st.navigation(pages, position="top").run()
+page = st.navigation(pages, position="top")
+
+# While an upload is queued or running, every other page says so — otherwise a visitor who comes
+# back mid-run lands on the intro with no sign their films are on the way.
+uploads = active_uploads() if page.title != "Your films" else []
+if uploads:
+    with st.container(key="upload_banner", horizontal=True, vertical_alignment="center",
+                      gap="small"):
+        name = uploads[0][1]["display_name"]
+        st.markdown(f"<span class='banner-text'><b>Your films are being built</b> — "
+                    f"{html.escape(name)}'s upload is in progress.</span>",
+                    unsafe_allow_html=True, width="stretch")
+        st.page_link("app_pages/4_your_films.py", label="See progress →")
+
+page.run()
 
 tmdb_logo = (f"<img src='{data_uri(str(TMDB_LOGO))}' alt='TMDB' style='height:14px'>"
              if TMDB_LOGO.exists() else "")

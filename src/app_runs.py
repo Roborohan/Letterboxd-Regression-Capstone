@@ -72,13 +72,20 @@ def run_doc(rid):
 
 
 def known_runs():
-    """This browser's run ids, newest first: this session's, the cookie's, and any in the link."""
+    """This browser's run ids, newest first: this session's, the cookie's, and any in the link.
+
+    The cookie arrives one of two ways: directly (locally), or — where a hosting layer doesn't
+    pass it on to the app, as on Streamlit Cloud — via the address, sent once by bridge_cookie().
+    """
     if not store.configured():
         return []
     ids = st.session_state.setdefault("my_runs", [])
     if not st.session_state.get("_runs_loaded"):
-        cookie = st.context.cookies.get(COOKIE, "")
-        ids.extend(r for r in cookie.split(".") if _valid(r) and r not in ids)
+        bridged = st.query_params.get("mine", "")
+        if "mine" in st.query_params:
+            del st.query_params["mine"]                  # used once, then off the address bar
+        for source in (st.context.cookies.get(COOKIE, ""), bridged):
+            ids.extend(r for r in source.split(".") if _valid(r) and r not in ids)
         st.session_state["_runs_loaded"] = True
     linked = st.query_params.get("u", "")
     if is_run(linked) and _valid(run_id(linked)) and run_id(linked) not in ids:
@@ -116,6 +123,41 @@ def sync_cookie():
     st.session_state["_cookie_written"] = value
 
 
+def bridge_cookie():
+    """If the app can't see this browser's cookie, have the page send it — once per tab.
+
+    Streamlit Cloud's servers pass Streamlit's own cookies on to the app but not this one, so a
+    returning visitor's uploads would be invisible. When the app sees no cookie, this script reads
+    it in the browser and reloads the page once with the run ids in the address (?mine=…), which
+    the app always sees and known_runs() then removes. A per-tab flag stops it from ever looping,
+    and without a cookie it does nothing at all.
+    """
+    if st.context.cookies.get(COOKIE) or st.session_state.get("_bridge_sent"):
+        return
+    st.session_state["_bridge_sent"] = True
+    st.html(f"""<script>
+    (function () {{
+      const m = document.cookie.match(/(?:^|; ){COOKIE}=([A-Za-z0-9_.-]+)/);
+      if (!m) return;
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("mine") || sessionStorage.getItem("{COOKIE}_sent")) return;
+      sessionStorage.setItem("{COOKIE}_sent", "1");
+      url.searchParams.set("mine", m[1]);
+      window.location.replace(url.toString());
+    }})();
+    </script>""", unsafe_allow_javascript=True)
+
+
+def active_uploads():
+    """This browser's uploads still queued or running — for the banner on the other pages."""
+    out = []
+    for rid in known_runs():
+        doc = run_doc(rid)
+        if doc and doc.get("status") in ("queued", "running") and not is_stale(doc):
+            out.append((rid, doc))
+    return out
+
+
 def ready_viewers():
     """This browser's finished runs, as viewer keys for the Viewing pills."""
     out = []
@@ -124,6 +166,16 @@ def ready_viewers():
         if doc and doc.get("status") == "done":
             out.append(RUN_PREFIX + rid)
     return out
+
+
+def active_upload():
+    """This browser's most recent upload if it's still queued or running, as (id, record), else None.
+    Used for the banner that points to its progress from every other page."""
+    for rid in known_runs():
+        doc = run_doc(rid)
+        if doc and doc.get("status") in ("queued", "running") and not is_stale(doc):
+            return rid, doc
+    return None
 
 
 def switch_to(viewer):
@@ -193,6 +245,6 @@ def touch_once(rid):
         seen.add(rid)
 
 
-__all__ = ["get_runner", "sweep_expired", "known_runs", "remember", "forget", "sync_cookie", "ready_viewers",
+__all__ = ["get_runner", "sweep_expired", "bridge_cookie", "active_uploads", "active_upload", "known_runs", "remember", "forget", "sync_cookie", "ready_viewers",
            "switch_to", "private_link", "bundle", "is_bundle", "restore", "delete", "touch_once",
            "run_doc", "is_stale"]

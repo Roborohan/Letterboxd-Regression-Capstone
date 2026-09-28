@@ -234,6 +234,24 @@ html, body, .stApp, .stApp p, .stApp li, .stApp label, .stApp button, .stApp inp
     line-height: 1.35;
 }
 
+/* The banner on every page while an upload is in progress */
+.st-key-upload_banner {
+    border: 1px solid var(--orange);
+    border-radius: 8px;
+    background: rgba(255, 128, 0, 0.08);
+    padding: 0.55rem 1rem;
+    margin: 0.4rem 0 0.6rem;
+}
+
+.banner-text {
+    font-size: 0.95rem;
+    color: var(--muted);
+}
+
+.banner-text b {
+    color: var(--white);
+}
+
 /* "Open on your phone" QR in the footer — desktop only, hidden in the phone layout */
 .qr-desktop {
     margin-left: auto;
