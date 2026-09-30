@@ -74,8 +74,9 @@ the same thing from your own Letterboxd export.
 A selector switches between viewers, and a settings menu can turn off the blur on explicit
 posters, show predictions unrounded, or reduce motion. Strong language in quoted review excerpts
 is always masked. Every film links to its Letterboxd page, every prediction has a shareable link,
-and the watchlist can be searched and filtered by genre, decade and length. It works on phones as
-well as desktop.
+and the watchlist can be searched and filtered by genre, decade and length — and by the streaming
+services you have, showing only films you could watch tonight. It works on phones as well as
+desktop.
 
 ### Upload your own export
 
@@ -116,6 +117,13 @@ code lives in `src/`, and `src/pipeline.py` runs every step on any export. It's 
   (`src/store.py`). Because the film data is shared, each upload only looks up the films nobody
   has uploaded before.
 
+Streaming availability is the one thing that can't be cached for long: catalogues change weekly.
+It comes from TMDB's watch-provider data (JustWatch's, underneath), covers subscription services
+only, and is fetched for every supported country at once — so a visitor sees their own country's
+services, taken from their browser's language setting, whoever's watchlist they're looking at. It
+stays under a week old: a GitHub Action refreshes the examples every Monday and commits the result,
+and an upload's is refreshed in the background whenever it's viewed after more than seven days.
+
 ---
 
 ## Running it
@@ -154,6 +162,17 @@ opens on.
 
 The notebooks always work on whichever export ran last, so `02`–`05` stop with a clear message
 if that isn't the user they were written for.
+
+Streaming availability for the committed viewers is kept separately, in `providers.json`, and can
+be refreshed on its own without re-running any models:
+
+```bash
+python refresh_providers.py              # every viewer in data/processed/
+python refresh_providers.py <username>   # just one
+```
+
+The weekly refresh (`.github/workflows/refresh-streaming.yml`) does this automatically, using a
+repository secret named `TMDB_TOKEN`. Because it commits every Monday, pull before you push.
 
 ### Uploads (optional)
 
@@ -222,3 +241,6 @@ Limited.
 
 Film data and posters from [TMDB](https://www.themoviedb.org/). This product uses the TMDB API but
 is not endorsed or certified by TMDB.
+
+Streaming availability from [JustWatch](https://www.justwatch.com/), through TMDB. Service logos
+are TMDB's; the JustWatch name and logo belong to JustWatch GmbH.
