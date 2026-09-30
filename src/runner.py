@@ -9,6 +9,8 @@ The export itself only ever exists in memory: it's read from the upload, handed 
 pipeline, and dropped. Only the app's result files are stored.
 """
 
+import io
+import json
 import logging
 import os
 import queue
@@ -22,7 +24,7 @@ import pandas as pd
 from src import store
 from src.letterboxd import load_export_zip
 from src.pipeline import PipelineError, identify, run
-from src.tmdb import make_headers, sensitive_poster
+from src.tmdb import PROVIDERS_FRESH_DAYS, fetch_all_providers, make_headers, sensitive_poster
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +67,7 @@ class Runner:
     def __init__(self, token):
         self.headers = make_headers(token)
         self.jobs = queue.Queue()
+        self._refreshing = set()                 # uploads with a streaming refresh already queued
         store.client()                       # connect here, not first inside the worker thread
         self._mark_stale()
         threading.Thread(target=self._work, daemon=True, name="pipeline-runner").start()
@@ -85,8 +88,15 @@ class Runner:
         run_id = store.new_run_id()
         store.create_run(run_id, name)
         store.update_run(run_id, username=user, region=region)
-        self.jobs.put((run_id, export, user, name, region))
+        self.jobs.put(("run", run_id, export, user, name, region))
         return run_id
+
+    def refresh_streaming(self, run_id):
+        """Queue a refresh of an upload's streaming availability (behind any uploads waiting).
+        Asking twice before it's done queues it once."""
+        if run_id not in self._refreshing:
+            self._refreshing.add(run_id)
+            self.jobs.put(("streaming", run_id))
 
     # ---------- the worker side ----------
 
@@ -98,13 +108,28 @@ class Runner:
 
     def _work(self):
         while True:
-            job = self.jobs.get()
+            kind, *job = self.jobs.get()
             try:
-                self._run_one(*job)
-            except Exception:                     # never let one bad run stop the worker
-                log.exception("runner: unexpected failure outside a run")
+                if kind == "run":
+                    self._run_one(*job)
+                else:
+                    self._refresh_one(*job)
+            except Exception:                     # never let one bad job stop the worker
+                log.exception("runner: unexpected failure in a %s job", kind)
             finally:
+                if kind == "streaming":
+                    self._refreshing.discard(job[0])
                 self.jobs.task_done()
+
+    def _refresh_one(self, run_id):
+        """Fresh streaming availability for a finished upload's watchlist, saved over the old."""
+        files = store.load_files(run_id)
+        if "watchlist_predictions.csv" not in files or is_cancelled(run_id):
+            return
+        wl = pd.read_csv(io.BytesIO(files["watchlist_predictions.csv"]), usecols=["tmdb_id"])
+        streaming = fetch_all_providers(wl["tmdb_id"], headers=self.headers,
+                                        store=store.shared_caches()["providers"])
+        store.save_files(run_id, {"providers.json": json.dumps(streaming).encode()})
 
     def _run_one(self, run_id, export, user, name, region):
         if is_cancelled(run_id):                  # cancelled while it waited in the queue

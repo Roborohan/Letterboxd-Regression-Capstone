@@ -253,8 +253,9 @@ class SharedCache:
 
 
 def shared_caches():
-    """The stores a pipeline run in the app uses: searches, film details, upcoming releases."""
-    return {kind: SharedCache(kind) for kind in ("search", "details", "discover")}
+    """The stores a pipeline run in the app uses: searches, film details, upcoming releases, and
+    where films are streaming (reused for 7 days only — catalogues change weekly)."""
+    return {kind: SharedCache(kind) for kind in ("search", "details", "discover", "providers")}
 
 
 def cache_put(kind, items):

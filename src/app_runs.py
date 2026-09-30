@@ -12,10 +12,11 @@ import re
 import zipfile
 from urllib.parse import urlsplit
 
+import pandas as pd
 import streamlit as st
 
 from src import store
-from src.app_data import APP_FILES, RUN_PREFIX, is_run, run_files, run_id
+from src.app_data import APP_FILES, OPTIONAL_FILES, RUN_PREFIX, is_run, run_files, run_id
 from src.runner import Runner, is_stale, tmdb_token
 
 COOKIE      = "btcs_runs"
@@ -217,7 +218,7 @@ def restore(data):
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         meta = json.loads(z.read(BUNDLE_TAG))
         files = {n: z.read(n) for n in z.namelist() if n in APP_FILES}
-    missing = [f for f in APP_FILES if f not in files and f != "reviews.csv"]
+    missing = [f for f in APP_FILES if f not in files and f not in OPTIONAL_FILES]
     if missing:
         raise ValueError("That results file is incomplete, so it can't be restored.")
     rid = store.new_run_id()
@@ -245,11 +246,24 @@ def delete(rid):
 
 
 def touch_once(rid):
-    """Viewing a run keeps it for another 90 days — once per session is plenty."""
+    """Viewing a run keeps it for another 90 days — once per session is plenty. If its streaming
+    availability is over a week old (or it predates streaming), a refresh is queued too."""
     seen = st.session_state.setdefault("_touched", set())
     if rid not in seen:
         store.touch(rid)
         seen.add(rid)
+        refresh_streaming_if_stale(rid)
+
+
+def refresh_streaming_if_stale(rid):
+    from src.tmdb import PROVIDERS_FRESH_DAYS
+    raw = run_files(rid).get("providers.json")
+    as_of = json.loads(raw)["as_of"] if raw else None
+    if as_of and (pd.Timestamp.today().normalize() - pd.Timestamp(as_of)).days < PROVIDERS_FRESH_DAYS:
+        return
+    runner = get_runner()
+    if runner is not None:
+        runner.refresh_streaming(rid)
 
 
 __all__ = ["get_runner", "sweep_expired", "bridge_cookie", "active_uploads", "active_upload", "known_runs", "remember", "forget", "sync_cookie", "ready_viewers",

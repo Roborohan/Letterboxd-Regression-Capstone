@@ -8,12 +8,15 @@ Used two ways, from the same code:
 tables as dataframes, and the caller decides where they go.
 """
 
+import json
+
 import pandas as pd
 
 from src.features import genre_vocabulary, top_n_vocabulary
 from src.letterboxd import display_name, film_key, region_from_profile, user_slug
 from src.modelling import build_ladder, model_summary, test_table
 from src.prepare import build_modelling_base, build_viewings, match_and_enrich
+from src.tmdb import fetch_all_providers
 from src.watchlist import (WINDOW_DAYS, coming_soon_table, neighbour_table,
                            popular_releases, predict_watchlist, select_films,
                            watchlist_features)
@@ -36,8 +39,9 @@ STAGES = {
     "rated":     (0.02, 0.30, "Matching your rated films to TMDB"),
     "models":    (0.30, 0.72, "Fitting the models — the slow part"),
     "watchlist": (0.72, 0.88, "Matching your watchlist to TMDB"),
-    "predict":   (0.88, 0.94, "Predicting your watchlist"),
-    "coming":    (0.94, 0.99, "Finding films coming soon"),
+    "predict":   (0.88, 0.92, "Predicting your watchlist"),
+    "streaming": (0.92, 0.96, "Checking where your watchlist is streaming"),
+    "coming":    (0.96, 0.99, "Finding films coming soon"),
 }
 
 
@@ -185,6 +189,19 @@ def run(export, *, headers, date, user, name, region, cache_dir=None, stores=Non
     app["reviews.csv"] = csv_bytes(reviews)
     log(f"{len(reviews)} reviews published for the app "
         f"(of {len(shown)} films that can appear as a neighbour)")
+
+    # Where each watchlist film is streaming, in every supported region. A nice extra, never a
+    # reason to fail a run: if TMDB's streaming data can't be had, the run finishes without it.
+    report("streaming")
+    try:
+        streaming = fetch_all_providers(
+            wl_out["tmdb_id"], headers=headers, today=date,
+            store=stores.get("providers") if stores is not None else None,
+            progress=lambda done, total: report("streaming", done / total))
+        app["providers.json"] = json.dumps(streaming).encode()
+        log(f"streaming availability for {len(streaming['films'])} watchlist films")
+    except Exception as e:                                   # noqa: BLE001 — optional extra
+        log(f"streaming availability skipped: {e}")
 
     report("coming")
     known = set(wl["tmdb_id"].dropna().astype(int)) | set(films["tmdb_id"].dropna().astype(int))

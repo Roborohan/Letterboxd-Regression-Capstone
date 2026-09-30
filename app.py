@@ -54,6 +54,9 @@ def attribution():
 TMDB API but is not endorsed or certified by TMDB. Posters remain the copyright of their
 respective owners and are loaded from TMDB's image service.
 
+**Streaming availability** comes from [JustWatch](https://www.justwatch.com/), through TMDB. It
+covers subscription services only, is refreshed weekly, and can lag a service's own catalogue.
+
 **Ratings, reviews and watchlists** come from personal [Letterboxd](https://letterboxd.com/)
 data exports, used with each person's permission. This app is an independent project and is
 not affiliated with, endorsed by or sponsored by Letterboxd. "Letterboxd" and its logo are

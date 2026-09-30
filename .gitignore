@@ -68,3 +68,6 @@ Thumbs.db
 *.log
 .vscode/
 assets/slides/
+
+# streaming availability for the example viewers, refreshed weekly
+!data/processed/*/providers.json

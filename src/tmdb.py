@@ -314,6 +314,83 @@ def fetch_all_details(tmdb_ids, *, headers, cache_path=None, store=None, progres
           + (f", {len(missing)} no longer on TMDB" if missing else ""))
     return pd.DataFrame(rows, columns=list(PARSED_COLUMNS))
 
+# ---------- Where a film is streaming ----------
+# TMDB's watch-provider data comes from JustWatch, which must be credited wherever it's shown.
+# Only subscription services ("flatrate") are kept: rent and buy would list almost every film.
+
+PROVIDER_REGIONS = sorted({
+    "GB", "US", "IE", "CA", "AU", "NZ", "IN", "DE", "FR", "ES", "IT", "NL", "SE", "NO", "DK",
+    "FI", "JP", "KR", "BR", "MX", "PH", "SG", "ZA", "BE", "AT", "CH", "PT", "PL", "AR",
+})
+PROVIDERS_FRESH_DAYS = 7          # streaming catalogues change weekly; older than this is refetched
+
+
+def fetch_providers(tmdb_id, *, headers):
+    return _get(f"https://api.themoviedb.org/3/movie/{tmdb_id}/watch/providers",
+                headers=headers).get("results", {})
+
+
+def parse_providers(results, regions=PROVIDER_REGIONS):
+    """{region: [provider ids]} for subscription streaming, plus {id: {name, logo}} for those
+    services — from one film's watch-provider response, which covers every country at once."""
+    by_region, catalog = {}, {}
+    for region in regions:
+        services = (results.get(region) or {}).get("flatrate") or []
+        if services:
+            by_region[region] = [int(p["provider_id"]) for p in services]
+            for p in services:
+                catalog[str(p["provider_id"])] = {"name": p.get("provider_name"),
+                                                  "logo": p.get("logo_path"),
+                                                  "order": p.get("display_priority", 999)}
+    return by_region, catalog
+
+
+def fetch_all_providers(tmdb_ids, *, headers, store=None, progress=None, today=None):
+    """Where each film streams, for every supported region: the providers.json the app reads.
+
+    With a shared `store`, a film looked up in the last PROVIDERS_FRESH_DAYS days is reused;
+    anything older, or missing, is fetched again. Without one, everything is fetched fresh.
+    Returns {"as_of", "providers": {id: {name, logo, order}}, "films": {tmdb_id: {region: [ids]}}}.
+    """
+    today = pd.Timestamp(today or pd.Timestamp.today()).normalize()
+    keys = list(dict.fromkeys(str(int(t)) for t in tmdb_ids if pd.notna(t)))
+    cached = store.get_many(keys) if store is not None else {}
+    fresh = {k: v for k, v in cached.items()
+             if (today - pd.Timestamp(v.get("fetched", "1970-01-01"))).days < PROVIDERS_FRESH_DAYS}
+
+    def lookup(key):
+        try:
+            results = fetch_providers(int(key), headers=headers)
+        except requests.HTTPError as e:
+            if e.response is None or e.response.status_code != 404:
+                raise
+            results = {}
+        by_region, catalog = parse_providers(results)
+        return {"fetched": today.date().isoformat(), "regions": by_region, "catalog": catalog}
+
+    todo = [k for k in keys if k not in fresh]
+    got, done = {}, len(keys) - len(todo)
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        futures = {pool.submit(lookup, k): k for k in todo}
+        for future in as_completed(futures):
+            got[futures[future]] = future.result()
+            done += 1
+            if progress and (done % 20 == 0 or done == len(keys)):
+                progress(done, len(keys))
+    if store is not None and got:
+        store.put_many(got)
+    print(f"streaming: {len(todo)} looked up, {len(keys) - len(todo)} reused")
+
+    everything = {**fresh, **got}
+    films, catalog = {}, {}
+    for key in keys:
+        entry = everything.get(key, {})
+        if entry.get("regions"):
+            films[key] = entry["regions"]
+        catalog.update(entry.get("catalog", {}))
+    return {"as_of": today.date().isoformat(), "providers": catalog, "films": films}
+
+
 # ---------- Upcoming releases ----------
 
 def discover_upcoming(start, end, *, headers, pages=2, region=None):

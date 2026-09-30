@@ -4,7 +4,8 @@ import math
 import pandas as pd
 import streamlit as st
 
-from src.app_data import current_tables, display_name, load_reviews, possessive
+from src.app_data import (REGION_NAMES, current_tables, display_name, load_providers, load_reviews,
+                          possessive, visitor_region)
 from src.app_ui import (blur_on, card_stats, censor_review, crowd, dialog_slot, excerpt, film_links,
                         flag_html, fold, gap, new_dialog, page_title, poster_grid, poster_url, pred_text, runtime_text,
                         stars, stars_exact, take_shared_film, thumb_html)
@@ -49,8 +50,19 @@ if "wl_page" not in st.session_state:
 GENRES  = sorted({g for gs in wl["genres"].dropna() for g in gs.split("|") if g})
 DECADES = [f"{d}s" for d in range(int(wl["film_year"].min()) // 10 * 10,
                                   int(wl["film_year"].max()) // 10 * 10 + 1, 10)]
+# Streaming: subscription services in the visitor's region (their browser's, changeable in
+# Filters). Only shown when this viewer has streaming data — an older upload may not.
+streaming = load_providers(st.session_state["user"])
+STREAM_REGIONS = (sorted({r for regions in streaming["films"].values() for r in regions},
+                         key=lambda r: REGION_NAMES.get(r, r)) if streaming else [])
+region_of_viewer = summary.get("region") if isinstance(summary.get("region"), str) else None
+HOME_REGION = visitor_region(fallback=region_of_viewer)
+if STREAM_REGIONS and HOME_REGION not in STREAM_REGIONS:
+    HOME_REGION = "GB" if "GB" in STREAM_REGIONS else STREAM_REGIONS[0]
+
 FILTER_DEFAULTS = {"known": ALL, "genres": [], "decades": (DECADES[0], DECADES[-1]),
-                   "length": (LENGTH_STEPS[0], LENGTH_STEPS[-1])}
+                   "length": (LENGTH_STEPS[0], LENGTH_STEPS[-1]),
+                   "region": HOME_REGION, "services": []}
 
 # The filter widgets are keyed by a version number: Reset (or a change of viewer, whose watchlist
 # has different genres and decades) bumps it, so every filter is recreated at its default.
@@ -77,16 +89,63 @@ def reset_filters():
     reset_paging()
 
 
+def streams_in(tmdb_id, region):
+    """Provider ids streaming this film in this region (subscription services only)."""
+    if not streaming or tmdb_id is None or pd.isna(tmdb_id):
+        return []
+    return streaming["films"].get(str(int(tmdb_id)), {}).get(region, [])
+
+
+def services_in(region):
+    """The services streaming at least one film on this watchlist in this region, most films first,
+    as [(provider id, name, film count)] — so the menu only offers services that matter here."""
+    counts = {}
+    for regions in (streaming or {}).get("films", {}).values():
+        for pid in regions.get(region, []):
+            counts[pid] = counts.get(pid, 0) + 1
+    names = (streaming or {}).get("providers", {})
+    out = [(pid, names.get(str(pid), {}).get("name") or f"Service {pid}", n) for pid, n in counts.items()]
+    return sorted(out, key=lambda x: (-x[2], x[1]))
+
+
+def join_or(items):
+    """'A', 'A or B', 'A, B or C' — how a list reads in a sentence."""
+    items = list(items)
+    if len(items) <= 2:
+        return " or ".join(items)
+    return ", ".join(items[:-1]) + " or " + items[-1]
+
+
+LOGO_BASE = "https://image.tmdb.org/t/p/w92"
+
+
+def service_html(pid, size=18):
+    """A streaming service as its logo followed by its name, for a sentence."""
+    info = (streaming or {}).get("providers", {}).get(str(pid), {})
+    name = html.escape(info.get("name") or f"Service {pid}")
+    logo = (f"<img src='{LOGO_BASE}{info['logo']}' alt='' style='height:{size}px; width:{size}px; "
+            f"border-radius:4px; vertical-align:-0.25em; margin-right:0.3em'>"
+            if info.get("logo") else "")
+    return f"<span style='white-space:nowrap'>{logo}{name}</span>"
+
+
+def region_changed():
+    """A different region has different services: clear the ones chosen for the old one."""
+    st.session_state[fkey("services")] = []
+    reset_paging()
+
+
 def active_filters():
-    """Plain-English descriptions of the filters currently set, for the button count and the note."""
+    """The filters currently set, as HTML-safe phrases for the button count and the note: text is
+    escaped, and streaming services are shown with their logos."""
     out = []
     if fval("known") != ALL:
-        out.append(fval("known").lower())
+        out.append(html.escape(fval("known").lower()))
     if fval("genres"):
-        out.append(" or ".join(fval("genres")))
+        out.append(html.escape(join_or(fval("genres"))))
     lo, hi = fval("decades")
     if (lo, hi) != FILTER_DEFAULTS["decades"]:
-        out.append(lo if lo == hi else f"{lo}–{hi}")
+        out.append(html.escape(lo if lo == hi else f"{lo}–{hi}"))
     lo, hi = fval("length")
     if (lo, hi) != FILTER_DEFAULTS["length"]:
         if lo == LENGTH_STEPS[0]:
@@ -95,6 +154,9 @@ def active_filters():
             out.append(f"over {length_label(lo)}")
         else:
             out.append(f"{length_label(lo)}–{length_label(hi)}")
+    if fval("services"):
+        where = html.escape(REGION_NAMES.get(fval("region"), fval("region")))
+        out.append(f"streaming on {join_or(service_html(pid) for pid in fval('services'))} in {where}")
     return out
 
 
@@ -145,6 +207,19 @@ with st.container(key="wl_controls", horizontal=True, vertical_alignment="center
                          on_change=reset_paging)
         st.select_slider("Length", LENGTH_STEPS, value=FILTER_DEFAULTS["length"], key=fkey("length"),
                          format_func=length_label, on_change=reset_paging)
+        if streaming:
+            st.selectbox("Streaming in", STREAM_REGIONS, index=STREAM_REGIONS.index(HOME_REGION),
+                         format_func=lambda r: REGION_NAMES.get(r, r).removeprefix("the "),
+                         key=fkey("region"), on_change=region_changed,
+                         help="Taken from your browser's language setting. Change it if that's not "
+                              "where you watch.")
+            offered = services_in(fval("region"))
+            st.multiselect("Streaming on", [pid for pid, _, _ in offered], default=[],
+                           format_func={pid: f"{nm} · {n}" for pid, nm, n in offered}.get,
+                           key=fkey("services"), on_change=reset_paging,
+                           placeholder="Any, or not streaming",
+                           help="Your subscription services: only films on at least one of them are "
+                                "shown. Only services with films from this watchlist are listed.")
         if applied:
             st.button("Reset filters", on_click=reset_filters, type="tertiary",
                       icon=":material/restart_alt:")
@@ -166,7 +241,11 @@ if query:
                f"A search covers the whole watchlist, so the list and filter above don't apply.")
 if applied and not query:
     explain += (f" <span style='color:var(--white)'>Filtered to "
-                f"{html.escape(' · '.join(applied))}.</span>")
+                f"{' · '.join(applied)}.</span>")
+if fval("services") and not query:
+    explain += (f" Streaming availability as of "
+                f"{pd.Timestamp(streaming['as_of']):%-d %b %Y}, from "
+                f"<a href='https://www.justwatch.com/' target='_blank'>JustWatch</a>.")
 st.markdown(f"<p class='card-meta'>{explain}</p>", unsafe_allow_html=True)
 st.markdown("<p class='card-meta'><span style='color:var(--orange)'>⚑</span> marks a film unlike "
             f"anything in {whose} rated history on one of the model's inputs, so its prediction is "
@@ -195,6 +274,10 @@ else:
         films = films[films["runtime"] >= lo]
     if hi < LENGTH_STEPS[-1]:
         films = films[films["runtime"] <= hi]
+    if fval("services"):
+        wanted = set(fval("services"))
+        region = fval("region")
+        films = films[films["tmdb_id"].map(lambda t: bool(wanted & set(streams_in(t, region))))]
 
     if mode == FAVOURITES:
         films = films[films["pred"] >= mean].sort_values(["pred", "vote_count"], ascending=[False, False])
@@ -331,6 +414,27 @@ def why_dialog(film):
         if notes:
             st.subheader("Why this prediction is less reliable", anchor=False)
             st.markdown("".join(f"<p class='card-meta'>⚑ {n}</p>" for n in notes), unsafe_allow_html=True)
+
+        if streaming:
+            region = fval("region")
+            names = streaming["providers"]
+            on = sorted(streams_in(film["tmdb_id"], region),
+                        key=lambda pid: names.get(str(pid), {}).get("order", 999))
+            where = REGION_NAMES.get(region, region)
+            source = (f"as of {pd.Timestamp(streaming['as_of']):%-d %b %Y}, from "
+                      f"<a href='https://www.justwatch.com/' target='_blank'>JustWatch</a>")
+            if on:
+                chips = "".join(
+                    f"<span style='display:inline-flex; align-items:center; gap:0.4rem; "
+                    f"margin:0 1rem 0.4rem 0; color:var(--white); font-weight:600'>"
+                    f"{service_html(pid, size=28)}</span>" for pid in on)
+                st.markdown(f"<p class='card-meta' style='margin:0.8rem 0 0.3rem'>Streaming in {where} "
+                            f"on</p><div>{chips}</div><p class='card-meta' style='margin-top:0'>"
+                            f"{source}</p>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<p class='card-meta' style='margin-top:0.8rem'>Not on a subscription "
+                            f"streaming service in {where} right now · {source}</p>",
+                            unsafe_allow_html=True)
 
         film_links(film)
 

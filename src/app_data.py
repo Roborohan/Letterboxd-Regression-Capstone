@@ -8,6 +8,7 @@ Two kinds of viewer, loaded the same way:
 """
 
 import io
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -29,7 +30,8 @@ SUMMARIES = {                     # one-row files, loaded as dictionaries
 }
 
 ID_COLS = ["tmdb_id", "film_year", "neighbour_tmdb_id", "neighbour_year"]
-APP_FILES = list(TABLES.values()) + list(SUMMARIES.values()) + ["reviews.csv"]
+APP_FILES = list(TABLES.values()) + list(SUMMARIES.values()) + ["reviews.csv", "providers.json"]
+OPTIONAL_FILES = {"reviews.csv", "providers.json"}      # an older upload may not have them
 RUN_PREFIX = "run:"
 
 
@@ -91,6 +93,48 @@ def tables_from_files(files):
 @st.cache_data
 def load_tables(user):
     return tables_from_files(viewer_files(user))
+
+
+# ---------- Where films are streaming ----------
+
+REGION_NAMES = {
+    "GB": "the UK", "US": "the US", "IE": "Ireland", "CA": "Canada", "AU": "Australia",
+    "NZ": "New Zealand", "IN": "India", "DE": "Germany", "FR": "France", "ES": "Spain",
+    "IT": "Italy", "NL": "the Netherlands", "SE": "Sweden", "NO": "Norway", "DK": "Denmark",
+    "FI": "Finland", "JP": "Japan", "KR": "South Korea", "BR": "Brazil", "MX": "Mexico",
+    "PH": "the Philippines", "SG": "Singapore", "ZA": "South Africa", "BE": "Belgium",
+    "AT": "Austria", "CH": "Switzerland", "PT": "Portugal", "PL": "Poland", "AR": "Argentina",
+}
+
+
+@st.cache_data(show_spinner=False)
+def _parse_providers(user, stamp):
+    data = viewer_files(user).get("providers.json")
+    return json.loads(data) if data else None
+
+
+def load_providers(user):
+    """A viewer's streaming availability ({as_of, providers, films}), or None if they have none.
+
+    Keyed on the file's modification time, so when the weekly refresh updates an example's file,
+    the app picks it up without a restart. Uploads come through run_files, cached for an hour.
+    """
+    path = DATA / user / "providers.json"
+    stamp = path.stat().st_mtime if not is_run(user) and path.exists() else None
+    return _parse_providers(user, stamp)
+
+
+def visitor_region(fallback=None):
+    """The visitor's country, from their browser's language setting ('en-GB' -> 'GB').
+
+    A best guess — a browser set to US English in London says US — so the Filters menu lets it
+    be changed. Falls back to `fallback`, then the UK.
+    """
+    locale = (st.context.locale or "").replace("_", "-")
+    region = locale.split("-")[-1].upper() if "-" in locale else None
+    if region in REGION_NAMES:
+        return region
+    return fallback if fallback in REGION_NAMES else "GB"
 
 
 def display_name(user):
