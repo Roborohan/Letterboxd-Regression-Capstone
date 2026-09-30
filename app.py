@@ -16,6 +16,7 @@ from src.app_ui import inject_css
 LOGO      = Path(__file__).parent / "assets" / "logo.png"
 TMDB_LOGO = Path(__file__).parent / "assets" / "tmdb.png"
 LETTERBOXD_LOGO = Path(__file__).parent / "assets" / "letterboxd.png"
+JUSTWATCH_LOGO  = Path(__file__).parent / "assets" / "justwatch.png"
 QR_CODE   = Path(__file__).parent / "assets" / "qr.png"
 
 
@@ -45,7 +46,10 @@ def attribution():
         f"<img src='{data_uri(str(TMDB_LOGO))}' alt='TMDB' style='height:22px'></a>"
         f"&nbsp;&nbsp;&nbsp;"
         f"<a href='https://letterboxd.com/' target='_blank'>"
-        f"<img src='{data_uri(str(LETTERBOXD_LOGO))}' alt='Letterboxd' style='height:22px'></a>",
+        f"<img src='{data_uri(str(LETTERBOXD_LOGO))}' alt='Letterboxd' style='height:22px'></a>"
+        + (f"&nbsp;&nbsp;&nbsp;<a href='https://www.justwatch.com/' target='_blank'>"
+           f"<img src='{data_uri(str(JUSTWATCH_LOGO))}' alt='JustWatch' style='height:22px'></a>"
+           if JUSTWATCH_LOGO.exists() else ""),        # optional: shown once the file is in assets/
         unsafe_allow_html=True,
     )
     st.markdown(
