@@ -26,7 +26,7 @@ jobs:
         run: pip install pandas requests python-dotenv
 
       - name: Refresh streaming availability
-        run: python refresh_providers.py
+        run: python scripts/refresh_providers.py
         env:
           TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
 

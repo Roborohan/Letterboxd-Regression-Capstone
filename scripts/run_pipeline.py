@@ -1,6 +1,6 @@
 """Run the whole pipeline on one Letterboxd export.
 
-    python run_pipeline.py [--export path/to/letterboxd-export] [--date YYYY-MM-DD]
+    python scripts/run_pipeline.py [--export path/to/letterboxd-export] [--date YYYY-MM-DD]
                            [--region US] [--name "Their Name"] [--tag test]
 
 With no arguments it uses the one letterboxd-* folder in the project root, or
@@ -18,6 +18,11 @@ difference it prints loudly: TMDB matches that need a human eye are dropped rath
 reviewed by hand. The steps themselves live in src/pipeline.py, which the app's upload
 page runs too.
 """
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # scripts/ -> project root, for src/
 
 import argparse
 import os

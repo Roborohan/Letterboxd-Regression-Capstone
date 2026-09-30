@@ -1,7 +1,7 @@
 """Refresh where the example viewers' watchlist films are streaming.
 
-    python refresh_providers.py              # every viewer in data/processed/
-    python refresh_providers.py roborohan    # just one
+    python scripts/refresh_providers.py              # every viewer in data/processed/
+    python scripts/refresh_providers.py roborohan    # just one
 
 Rewrites data/processed/<username>/providers.json and touches nothing else: no models are
 re-run. A GitHub Action (.github/workflows/refresh-streaming.yml) runs this every Monday and
@@ -10,6 +10,11 @@ commits the result, and Streamlit Cloud picks the change up on its own. Needs TM
 
 Streaming data is JustWatch's, through TMDB, and is credited wherever the app shows it.
 """
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # scripts/ -> project root, for src/
 
 import json
 import os

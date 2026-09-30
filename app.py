@@ -93,7 +93,7 @@ inject_css()
 
 users = list_users()
 if not users:
-    st.error("No processed data found. Run `python run_pipeline.py` on a Letterboxd export "
+    st.error("No processed data found. Run `python scripts/run_pipeline.py` on a Letterboxd export "
              "(or notebooks 01–05) first — they write the app's files to "
              "data/processed/<username>/.")
     st.stop()

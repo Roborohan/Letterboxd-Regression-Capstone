@@ -110,7 +110,7 @@ of the app then works with your films. You need at least 300 rated diary entries
 The notebooks are the record of the analysis and the decisions behind it. The reusable
 code lives in `src/`, and `src/pipeline.py` runs every step on any export. It's used two ways:
 
-- **`run_pipeline.py`**, from the command line: local caches, results written to
+- **`scripts/run_pipeline.py`**, from the command line: local caches, results written to
   `data/processed/<username>/`.
 - **The app's uploads** (`src/runner.py`): a background worker takes one upload at a time, runs the
   same pipeline against a TMDB cache shared by every upload, and saves the results to Firestore
@@ -144,13 +144,13 @@ DISPLAY_NAME_YOURUSERNAME=Your Name      # optional, overrides the export's prof
 Then either run the pipeline:
 
 ```bash
-python run_pipeline.py                   # or --export path/to/export --region US
+python scripts/run_pipeline.py                   # or --export path/to/export --region US
 streamlit run app.py
 ```
 
 or work through the notebooks 01 → 05 and start the app the same way.
 
-`run_pipeline.py` derives the username, display name and cinema region from the export's
+`scripts/run_pipeline.py` derives the username, display name and cinema region from the export's
 profile, and stops with a clear message below ~300 rated diary entries, where the held-out
 test set is too small for the comparison to say anything either way. It differs from the
 notebooks in one respect it prints: TMDB matches that need a human eye are dropped rather
@@ -167,8 +167,8 @@ Streaming availability for the committed viewers is kept separately, in `provide
 be refreshed on its own without re-running any models:
 
 ```bash
-python refresh_providers.py              # every viewer in data/processed/
-python refresh_providers.py <username>   # just one
+python scripts/refresh_providers.py              # every viewer in data/processed/
+python scripts/refresh_providers.py <username>   # just one
 ```
 
 The weekly refresh (`.github/workflows/refresh-streaming.yml`) does this automatically, using a
