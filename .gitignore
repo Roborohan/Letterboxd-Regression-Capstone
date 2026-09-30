@@ -71,3 +71,6 @@ assets/slides/
 
 # streaming availability for the example viewers, refreshed weekly
 !data/processed/*/providers.json
+
+# presentation-only: kept locally, not part of the project
+make_slide_charts.py
